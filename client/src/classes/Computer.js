@@ -2,7 +2,12 @@
 // type1 = ground
 // type2 = clear
 // type3 = ground straight
+// type4 = dirt builder (Magic Wall, Dirt Slinger, Dirtball): raised as cover
 
+
+const COVER_MIN_DISTANCE = 60
+const COVER_MAX_DISTANCE = 160
+const COVER_GAP_FRACTION = 0.3
 
 export class Computer {
     /**
@@ -39,6 +44,9 @@ export class Computer {
         }
         else if (randomWeapon.type === 3) {
             this.handleType3(randomWeapon, randomIndex)
+        }
+        else if (randomWeapon.type === 4) {
+            this.handleType4(randomWeapon, randomIndex)
         }
 
         this.scene.hideTurnPointer()
@@ -461,5 +469,62 @@ export class Computer {
         this.tank.turret.relativeRotation = k.angle - this.tank.rotation
         this.tank.setPower(k.v / this.powerFactor)
         this.tank.shoot()
+    }
+
+
+    // cover: land a dirt builder between this tank and the opponent, a short
+    // way in front of the CPU, instead of aiming 0-damage dirt at the enemy.
+    handleType4 = (randomWeapon, randomIndex) => {
+        const direction = Math.sign(this.playerTank.x - this.tank.x) || 1
+        const gap = Math.abs(this.playerTank.x - this.tank.x)
+        const targetX = this.tank.x + direction * Math.max(COVER_MIN_DISTANCE, Math.min(COVER_MAX_DISTANCE, gap * COVER_GAP_FRACTION))
+        const k = this.findLandingShot(targetX, direction)
+
+        if (k === null) {
+            this.handleType0(randomWeapon, randomIndex)
+            return
+        }
+
+        this.deviate(k)
+
+        this.scene.HUD.weaponScrollDisplay.setActive(randomIndex)
+        this.tank.selectedWeapon = randomIndex
+        this.tank.turret.setRotation(k.angle)
+        this.tank.turret.relativeRotation = k.angle - this.tank.rotation
+        this.tank.setPower(k.v / this.powerFactor)
+        this.tank.shoot()
+    }
+
+
+    // Ballistic search (gravity 300) for the shot whose first ground contact is
+    // closest to targetX. Returns {angle, v} in turret terms, or null.
+    findLandingShot = (targetX, direction) => {
+        const accelaration = 300
+        const minAngle = direction > 0 ? 0.15 : Math.PI/2
+        const maxAngle = direction > 0 ? Math.PI/2 : Math.PI - 0.15
+        let best = null
+        let bestDist = Infinity
+
+        for (let theta = minAngle; theta < maxAngle; theta += 0.05 * this.factor) {
+            const sin = Math.sin(theta)
+            const cos = Math.cos(theta)
+            for (let v = this.powerFactor; v < 100 * this.powerFactor; v += this.powerFactor * this.factor) {
+                for (let t = 0.05; t < 5; t += 0.01 * this.factor) {
+                    const newX = this.tank.turret.x + v * cos * t
+                    const newY = this.tank.turret.y - v * sin * t + 1/2 * accelaration * t * t
+                    if (newX < 0 || newX > this.terrain.width) break
+                    if (newY >= this.terrain.height || (newY > 0 && this.terrain.getPixel(newX, newY).alpha > 0)) {
+                        const dist = Math.abs(newX - targetX)
+                        if (dist < bestDist) {
+                            bestDist = dist
+                            best = {angle: Math.PI/2 - theta, v}
+                        }
+                        break
+                    }
+                }
+            }
+        }
+
+        return best
     }
 }

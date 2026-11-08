@@ -1,9 +1,44 @@
-import designs from './designs.json';
-import bounds from './bounds.json';
 import { ART_TILE, ART_COLUMNS, ART_FRAMES, drawOwnFallback } from './frames';
-export const WEAPON_ART=Object.freeze(designs);
-const byId=new Map(designs.map(d=>[d.id,d])),byName=new Map(designs.map(d=>[d.name.toLowerCase(),d]));
+// designs.json (~750KB) and bounds.json (~270KB) are split into their own lazy
+// chunk. Until they arrive weaponArt() returns null and every caller falls back
+// to the procedural material renderer; artVersion() lets caches invalidate.
+export let WEAPON_ART=Object.freeze([]);
+let bounds={},byId=new Map(),byName=new Map(),version=0,loading=null;
+const listeners=new Set();
+export const installWeaponArt=(designs,frameBounds)=>{
+    WEAPON_ART=Object.freeze(designs);bounds=frameBounds||{};
+    byId=new Map(designs.map(d=>[d.id,d]));byName=new Map(designs.map(d=>[d.name.toLowerCase(),d]));version++;
+    for(const listener of [...listeners])try{listener(version);}catch{}
+    return WEAPON_ART;
+};
+export const artVersion=()=>version;
+export const weaponArtReady=()=>byId.size>0;
+export const onWeaponArtReady=listener=>{listeners.add(listener);return ()=>listeners.delete(listener);};
+export const artBounds=id=>bounds[id]||null;
+export const loadWeaponArt=()=>{
+    if(weaponArtReady())return Promise.resolve(WEAPON_ART);
+    if(!loading)loading=Promise.all([import(/* webpackChunkName: "weapon-art-data" */'./designs.json'),import(/* webpackChunkName: "weapon-art-data" */'./bounds.json')])
+        .then(([d,b])=>installWeaponArt(d.default||d,b.default||b)).catch(()=>{loading=null;return WEAPON_ART;});
+    return loading;
+};
+// Jest has no chunk loader timing to wait for; install synchronously there.
+// webpack folds this branch away in production builds.
+if(process.env.NODE_ENV==='test')installWeaponArt(require('./designs.json'),require('./bounds.json'));
+else if(typeof window!=='undefined')loadWeaponArt();
 export const weaponArt=options=>byId.get(options.weaponId??options.id)||byName.get((options.weaponName||options.name||'').toLowerCase())||null;
+// Owned impact frames are scaled so their widest frame spans the actual blast
+// radius: size * extent === radius. Falls back to the historical 3.2r.
+const extentCache=new Map();
+export const impactArtSize=(design,radius)=>{
+    if(!design)return radius*3.2;
+    let extent=extentCache.get(design.id);
+    if(extent===undefined){
+        const frames=bounds[design.id];extent=0;
+        if(frames)for(let i=0;i<12;i++){const b=frames[i];if(!b||b[2]<=1)continue;extent=Math.max(extent,Math.abs(b[0]-ART_TILE/2),Math.abs(b[0]+b[2]-ART_TILE/2));}
+        extent=extent/ART_TILE;if(frames)extentCache.set(design.id,extent);
+    }
+    return extent>0?radius/extent:radius*3.2;
+};
 
 // Texture ownership is one weapon -> one PNG -> one Phaser texture. There are
 // no family lookups or aliases. A bounded cache releases inactive GPU textures.
@@ -39,7 +74,7 @@ export class WeaponArt {
         });
         return entry;
     }
-    prewarm(ids){return Promise.all([...new Set(ids)].slice(0,this.limit).map(id=>{const entry=this.get(weaponArt({weaponId:id}),false);return entry?.ready;}));}
+    prewarm(ids){if(!weaponArtReady())return loadWeaponArt().then(()=>this.disposed||!weaponArtReady()?[]:this.prewarm(ids));return Promise.all([...new Set(ids)].slice(0,this.limit).map(id=>{const entry=this.get(weaponArt({weaponId:id}),false);return entry?.ready;}));}
     remove(entry){this.entries.delete(entry.id);entry.image.onload=entry.image.onerror=null;entry.image.src='';entry.resolve?.(entry);if(this.scene.textures.exists(entry.key))this.scene.textures.remove(entry.key);entry.canvas.width=entry.canvas.height=1;}
     stats(){return {ownedTextures:this.entries.size,ownedTextureLimit:this.limit,loadedWeaponTextures:[...this.entries.values()].filter(e=>e.loaded).length,failedWeaponTextures:[...this.failed]};}
     dispose(){this.disposed=true;for(const entry of [...this.entries.values()])this.remove(entry);this.entries.clear();}

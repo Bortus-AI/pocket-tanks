@@ -93,7 +93,9 @@ function tractorLift(runtime,point) {
         tank.body.stop();tank.body.setGravityY(0);tank.settled=false;
         return{tank,x:tank.x,start:tank.y,destination,age:0};
     });
-    if(runtime.earlyLifts.length)runtime.schedule(46/60,()=>{});
+    // Keep-alive pushed directly: the bounded schedule() may drop it, ending the
+    // turn mid-lift.
+    if(runtime.earlyLifts.length)runtime.events.push({at:runtime.tick+46,fn:()=>{}});
 }
 
 export function impactEarlyEffect(runtime, projectile) {

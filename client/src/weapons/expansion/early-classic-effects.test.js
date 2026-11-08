@@ -19,7 +19,7 @@ const fixture = (name, options={}) => {
     context.fillModes=[];context.fill=jest.fn(()=>context.fillModes.push(context.globalCompositeOperation));
     const runtime={definition:{name,id:570,radius:40,strength:.65,count:10},options,scene,
         terrain:{width:1200,height:533,context,update:jest.fn()},projectiles:[],direction:1,
-        origin:()=>({x:300,y:337,angle:-Math.PI/4}),fxOptions:extra=>extra,ground:()=>350,carve:jest.fn(),build:jest.fn(),dirtAt:jest.fn(),walkers:[],schedule:jest.fn(),
+        origin:()=>({x:300,y:337,angle:-Math.PI/4}),fxOptions:extra=>extra,ground:()=>350,carve:jest.fn(),build:jest.fn(),dirtAt:jest.fn(),walkers:[],schedule:jest.fn(),events:[],tick:0,
         remove:jest.fn(p=>{p.removed=true;}),ray:jest.fn(),random:()=>.5,pointBurst:jest.fn(),coat:jest.fn(),burst:jest.fn(),
     };
     runtime.weapon={id:570,scene,tank:scene.tank1,weaponHandler:runtime};
@@ -177,7 +177,7 @@ test('Smoke Bomb changes nearby controls once while leaving acid resolution to t
 test('Tractor Beam clears burial, holds a deterministic lift, then releases gravity and cleans up cancellation',()=>{
     const {runtime,projectile,scene}=fixture('Tractor Beam');runtime.definition.radius=100;
     scene.tank2.setPosition(720,430);impactEarlyEffect(runtime,projectile);
-    expect(runtime.carve).toHaveBeenCalled();expect(runtime.schedule).toHaveBeenCalledWith(46/60,expect.any(Function));
+    expect(runtime.carve).toHaveBeenCalled();expect(runtime.events).toEqual([{at:46,fn:expect.any(Function)}]);
     for(let tick=0;tick<45;tick++)updateEarlyEffect(runtime);
     expect(scene.tank2.y).toBe(250);expect(scene.tank2.body.preUpdate).toHaveBeenCalled();
     expect(scene.tank2.body.setGravityY).toHaveBeenLastCalledWith(300);expect(runtime.earlyLifts).toHaveLength(0);

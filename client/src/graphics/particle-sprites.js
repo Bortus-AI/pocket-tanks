@@ -61,6 +61,7 @@ export const particleAtlas = (sprite, materialArt = null) => {
     atlas = {canvas, frames, materialArt, tints:new Map()}; return atlas;
 };
 
+const TINTED = new Set(['dust','vapor','energy','light','spark','debris','drop']);
 export const isMaterialBurst = kind => ['explosion','frostburst','acidburst','foamburst'].includes(kind);
 export const animatedParticleFrame = particle => particle.kind === 'explosion' ? `explosion-${Math.min(11,Math.floor(particle.age/particle.life*12))}`
     : particle.kind === 'flame' ? `flame-${Math.min(5,Math.floor(particle.age/particle.life*6))}`
@@ -97,10 +98,20 @@ export class ParticleSprites {
             sparks:scene.add.container(0,0).setDepth(5.2).setMask(this.mask),
         };
         this.key = 'weapon-particle-atlas';
-        if (!scene.textures.exists(this.key)) {
-            const texture = scene.textures.addCanvas(this.key, source.canvas);
-            Object.entries(source.frames).forEach(([name, {x,y}]) => texture.add(name,0,x,y,TILE,TILE));
+        this.bind(source);
+    }
+
+    // (Re)bind the shared atlas texture. A stale texture built before the
+    // material sheet loaded is replaced and every pooled image re-targeted.
+    bind(source) {
+        const textures = this.scene.textures;
+        if (textures.exists(this.key)) {
+            if (textures.get(this.key).getSourceImage?.() === source.canvas) return;
+            textures.remove(this.key);
         }
+        const texture = textures.addCanvas(this.key, source.canvas);
+        Object.entries(source.frames).forEach(([name, {x,y}]) => texture.add(name,0,x,y,TILE,TILE));
+        for (const image of this.images) { image.cacheKey = null; image.cacheFrame = null; }
     }
 
     render(particles) {
@@ -116,10 +127,16 @@ export class ParticleSprites {
             const additive = ['light','energy','spark'].includes(p.kind);
             const layer = soft ? this.layers.smoke : ((p.art&&p.channel==='impact')||isMaterialBurst(p.kind)) ? this.layers.explosion : this.layers.sparks;
             if (image.parentContainer !== layer) layer.add(image);
-            image.setTexture(p.art?.key||this.key,p.art?ownedFrame(p):animatedParticleFrame(p)).setPosition(p.x,p.y).setRotation(p.rotation)
-                .setAlpha(p.alpha * fade).setBlendMode(additive ? 1 : 0).setDepth(soft ? 4.8 : p.kind==='explosion' ? 4.9 : 5.2).setVisible(true).setOrigin(.5);
-            image.clearTint();
-            if (['dust','vapor','energy','light','spark','debris','drop'].includes(p.kind)) image.setTint(parseInt(p.color.replace('#',''),16));
+            // Texture, blend, depth and tint only change when the particle a
+            // pooled image represents changes; avoid per-frame state churn.
+            const key = p.art?.key||this.key, frame = p.art?ownedFrame(p):animatedParticleFrame(p);
+            if (image.cacheKey !== key || image.cacheFrame !== frame) { image.setTexture(key, frame); image.cacheKey = key; image.cacheFrame = frame; }
+            const blend = additive ? 1 : 0, depth = soft ? 4.8 : p.kind==='explosion' ? 4.9 : 5.2;
+            if (image.cacheBlend !== blend) { image.setBlendMode(blend); image.cacheBlend = blend; }
+            if (image.cacheDepth !== depth) { image.setDepth(depth); image.cacheDepth = depth; }
+            image.setPosition(p.x,p.y).setRotation(p.rotation).setAlpha(p.alpha * fade).setVisible(true).setOrigin(.5);
+            if (p.tint === undefined) p.tint = p.art ? (p.artTint ?? null) : TINTED.has(p.kind) && typeof p.color === 'string' ? parseInt(p.color.replace('#',''),16) : null;
+            if (image.cacheTint !== p.tint) { if (p.tint === null) image.clearTint(); else image.setTint(p.tint); image.cacheTint = p.tint; }
             if(p.art){if(p.channel==='beam')image.setDisplaySize(size,p.beamWidth);else image.setDisplaySize(size,size).setOrigin(.5,['impact','residue'].includes(p.channel)?.85:.5);}
             else if (p.kind === 'flame') image.setDisplaySize(size*1.5,size*2).setOrigin(.5,.88);
             else if (p.kind === 'energy') image.setDisplaySize(size*8,size*8);

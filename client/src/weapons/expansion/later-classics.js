@@ -1,13 +1,16 @@
 import { payloads } from './catalog';
 import reference from './classic-reference.json';
 import { withMechanicalRules } from './unique-mechanics';
+import { classicAdaptations, earlyClassicAdaptations } from './classics';
+import { classicTuning } from './later-classic-tuning';
+import { stableWeaponId } from '../weapon-ids';
 
 // Later classic expansions. These are authored ports onto the remaster's
 // primitives, with new timing/balance; their original names remain searchable.
 const specs = new Map();
 const group = (names, mechanic, key='kinetic', options={}) => names.split('|').forEach(name=>specs.set(name,{mechanic,key,options:{...options}}));
 // Gravity, Fireworks, Snowball and Gold packs.
-group('Gravity Well|Magnet|Super Magnet|Cyclone|Whirlwind','vortex','magnet',{radius:90,force:220});
+group('Super Magnet|Cyclone|Whirlwind','vortex','magnet',{radius:90,force:220});
 group('Hot Potato|Bouncy Ball|Toy Hammer|Beach Ball','bouncer','kinetic',{bounces:5,rubber:true,radius:34});
 group('Funnel|Super Funnel','scatterbuild','foam',{dirt:true,shots:8,spread:1.2,radius:18});
 group('Crazy Wall|Great Wall|Glue Stick|Fire Wall','pillars','fire',{shots:1,range:70,radius:38});
@@ -17,7 +20,7 @@ group('Super Nova','radiallaser','ion',{shots:16,pierce:true,range:240,radius:12
 group('Snowblower|Snow Drift|Sand Storm|Paintball Gun','scatterbuild','frost',{shots:12,spread:1,dirt:true,radius:18});
 group('Lava Cannon|Blaze|Blowtorch','groundwave','fire',{shots:8,pierce:true,radius:17,range:160});
 group('Solar Flare|Lightning Rod|Laser Strike|Space Laser|Space Cannon','skyfall','ion',{shots:8,radius:33});
-group('10 Shot|Stinger','spread','kinetic',{shots:10,spread:.8,radius:22});
+group('Stinger','spread','kinetic',{shots:10,spread:.8,radius:22});
 group('Mega Reaction|Explode-a-Tron','groundwave','volatile',{shots:12,range:190,radius:27});
 group('Ant Farm|Flower Power|Badger','drillburst','kinetic',{shots:8,splitMode:'dirt',dirt:true,radius:18});
 group('Sonic Blast|Shock Wave','ring','ion',{range:105,radius:44,force:170});
@@ -27,42 +30,40 @@ group('Sledgehammer|Anvil|Pounder|Slammer','pitfall','kinetic',{shots:5,radius:3
 group('Collide-o-scope|Streamers|Chroma Blaster|Fuzz Ball|Pulsar','split','magnet',{shots:10,splitMode:'bounce',radius:16});
 group('Neon Blast|Dazzler','ring','ion',{range:90,radius:45});
 group('Island','island','seismic',{radius:55,strength:.1});
-group('Golden Bullet|Pot o\' Gold','random','kinetic',{radius:16,strength:.1});
+group('Pot o\' Gold','random','kinetic',{radius:16,strength:.1});
 group('Melt Down|Lava|Hot Spring','pitfirebury','fire',{shots:5,radius:35});
 group('Mass Driver','skyfall','seismic',{shots:1,radius:110,strength:1.6});
 group('Molten Plastic|Burning Rubber|Rubber Paint','terraincoat','fire',{rubber:true,radius:80});
 group('Spinner|Flying Discs|Orbiter|Saucer Attack|Robot Blimps','orbitlaser','ion',{shots:6,dwell:120,range:150});
-group('Phaser|Railgun|Tachyon Beam','rail','ion',{pierce:true,range:700,radius:14});
+group('Phaser|Tachyon Beam','rail','ion',{pierce:true,range:700,radius:14});
 group('Shredder|Excavator|Mower','trench','kinetic',{shots:12,radius:18});
-group('Tunnel|Cavern','longtunnel','seismic',{radius:16});
+group('Cavern','longtunnel','seismic',{radius:16});
 group('Whiplash|Yo-yo','proximity','kinetic',{returnToShooter:true,range:75,radius:35});
 // Fuzz, Tornado, Nano, Magic and Acid packs.
 group('Side Kick','sideways','kinetic',{shots:6,spread:.3,side:true,radius:25});
-group('Blockade|Lock Box|Bubble Wrap|Bounce House','scatterbuild','foam',{dirt:true,rubber:true,shots:12,radius:20,spread:Math.PI*2});
+group('Blockade|Lock Box|Bounce House','scatterbuild','foam',{dirt:true,rubber:true,shots:12,radius:20,spread:Math.PI*2});
 group('Stun Gun|Twist Rockets','spread','ion',{shots:3,spread:.18,radius:26});
 group('Tornado|Graviton','roller','magnet',{followGround:true,force:230,dwell:150,radius:38});
 group("Thor's Hammer|Tesla Coil|Energy Spike|Sticker Shock",'proximity','ion',{range:120,shots:7,radius:18});
 group('Stampede','roller','kinetic',{shots:7,followGround:true,force:120,radius:26});
 group('Fizz Bombs|Smoke Bomb|Gamma Goo','split','acid',{shots:8,splitMode:'bounce',radius:22});
-group('Shield','selfrubberdome','foam',{self:true,radius:50});
 group('Glue Storm|Glue Gun|Gyro Glue','terraincoat','frost',{erase:true,rubber:false,radius:105});
 group("Run 'n' Gun",'runngun','kinetic',{radius:17});
 group('Missile Turret','missileturret','kinetic',{radius:17});
 group('Auto Turrets','autoturrets','kinetic',{radius:17});
 group('Scorcher|Phoenix','guided','fire',{range:180,radius:58});
-group('Tractor Beam|Vacuum Cannon','vortex','ion',{radius:115,force:280});
+group('Vacuum Cannon','vortex','ion',{radius:115,force:280});
 group('Nanobots|Buzzbots|Gyrobots','split','ion',{shots:10,splitMode:'homing',range:190,radius:16});
 group('Phase Missile|Gamma Blaster|Sneak Attack','guided','magnet',{pierce:true,range:650,radius:25});
 group('Warp Gate|Quantum Cube|Grab Bag','random','ion',{shots:7,radius:40});
 group('Crackdown','fault','seismic',{shots:9,radius:26});
-group('Magic Beans|Bushwhack|Black Forest|Lollipop|Carbon Crawler','pillars','kinetic',{shots:7,range:130,dirt:true,radius:30});
-group('Lemon','dud','kinetic',{radius:5,strength:.01});
-group('Acid Bombs|Slime Ball','split','acid',{shots:8,splitMode:'bounce',radius:23});
+group('Magic Beans|Bushwhack|Lollipop|Carbon Crawler','pillars','kinetic',{shots:7,range:130,dirt:true,radius:30});
+group('Slime Ball','split','acid',{shots:8,splitMode:'bounce',radius:23});
 group('Cauldron|Pipeline','drillburst','acid',{shots:8,radius:25});
 group('Zipper','guided','kinetic',{range:150,radius:26});
 group('Chalk Dust','split','foam',{shots:14,spread:1.8,dirt:true,radius:15});
 group('Trailblazer|Char','stream','fire',{shots:14,spread:.35,radius:14});
-group('Bulldozer|Strip Mine','groundwave','seismic',{shots:24,range:1000,radius:20,strength:.1});
+group('Bulldozer','groundwave','seismic',{shots:24,range:1000,radius:20,strength:.1});
 group('Lead Balloon','mortar','volatile',{radius:80,strength:1.1});
 group('Dive Bomb|Bombardment','skyfall','kinetic',{shots:8,radius:32});
 group('Toaster|Heat Lamp','nonexcavate','fire',{radius:85,strength:.65});
@@ -71,9 +72,8 @@ group('Burn Barrel','roller','fire',{followGround:true,bounces:3,radius:43});
 // Rocket, Laser, Party and Blast packs.
 group('Pop Rocket','drillburst','kinetic',{shots:3,force:250,radius:26});
 group('Sky Strike','guided','kinetic',{shots:5,range:170,radius:27,force:170});
-group('Cheap Shot','cheapshot','kinetic',{radius:26,strength:.65});
 group('Blackout','nonexcavate','acid',{radius:70,strength:.35});
-group('Bunker Buster|Torpedo','drill','kinetic',{pierce:true,range:250,radius:40});
+group('Torpedo','drill','kinetic',{pierce:true,range:250,radius:40});
 group('Repeater|Party Popper','split','volatile',{shots:12,splitMode:'bounce',radius:18});
 group('Puddle Jumper|Leap Frog','selfescape','foam',{force:200,shots:4,radius:25});
 group('Elevator|Fix-it Foam','pedestal','foam',{self:true,radius:45,rubber:true});
@@ -106,14 +106,12 @@ group('Paddle Ball|Bungee Bomb','proximity','magnet',{returnToShooter:true,range
 group('Plasma Orb','orbitlaser','ion',{shots:5,range:115,dwell:150,radius:28});
 group('Bubble Gun','spread','foam',{shots:12,spread:.65,radius:18});
 group('Star Cruiser','roller','ion',{followGround:true,shots:7,dwell:130,radius:20});
-group('Freeze Ray','laser','frost',{radius:15});
 group('Robotic Worm','drillburst','ion',{shots:5,splitMode:'laser',range:160,radius:23});
 group('Mirror Ball','radiallaser','ion',{bounces:4,shots:10,range:150,radius:14});
 group('Slingshot','spread','kinetic',{shots:10,spread:.65,force:-120,radius:18});
 group('Blender','ring','kinetic',{range:90,radius:65,strength:1.2});
 group('Backtrack','selfescape','kinetic',{self:true,shots:3,force:170,radius:27});
 group('Ion Cannon','skyfall','ion',{shots:5,radius:37});
-group('Oil Slick','oil','fire',{radius:55});
 
 const descriptions = {
  vortex:'Pulls nearby tanks toward the impact point.',repulsor:'Pushes nearby tanks away from the impact.',
@@ -152,26 +150,31 @@ const caveat = (mechanic, options, payload) => {
     return `${delivery} ${payload.risk}`;
 };
 const baseBehaviors=new Set(['vortex','repulsor','rail','laser','skyfall','trench','longtunnel','dud','mortar','selfrubberdome','cheapshot','drill','pedestal','crater','oil','fault']);
-export const laterClassicAdaptations = reference.slice(125).flatMap((entry,index)=>{
-    const spec=specs.get(entry.name);if(!spec)return [];
-    const o=spec.options;
-    return [{id:700+index,name:entry.name,behavior:baseBehaviors.has(spec.mechanic)?spec.mechanic:'shell',
-        classicMechanic:baseBehaviors.has(spec.mechanic)?undefined:spec.mechanic,options:o,
-        radius:o.radius||32,strength:o.strength??.65,count:o.shots||5,type:o.self?2:0,payload:payloads.find(p=>p.key===spec.key),
-        category:classify(spec.mechanic,o),origin:'Classic expansion · adaptation',
-        description:`${descriptions[spec.mechanic]||'Delivers its payload at the landing point.'} ${payloads.find(p=>p.key===spec.key).detail}`,
-        warning:caveat(spec.mechanic,o,payloads.find(p=>p.key===spec.key)),fidelity:'adaptation',source:entry.source}];
-});
-export const laterClassicUnmapped = reference.slice(125).filter(entry=>!specs.has(entry.name)).map(entry=>entry.name);
+// Tuning (later-classic-tuning.js) gives every member of a shared recipe its
+// own numbers, payload and description; IDs come only from weapon-ids.json.
+const adaptation=(name,source)=>{
+    const base=specs.get(name),tune=classicTuning[name]||{},key=tune.key||base.key;
+    const o=Object.fromEntries(Object.entries({...base.options,...tune.options}).filter(([,value])=>value!==null));
+    const payload=payloads.find(p=>p.key===key);
+    return {id:stableWeaponId(name),name,behavior:baseBehaviors.has(base.mechanic)?base.mechanic:'shell',
+        classicMechanic:baseBehaviors.has(base.mechanic)?undefined:base.mechanic,options:o,
+        radius:o.radius||32,strength:o.strength??.65,count:o.shots||5,type:o.self?2:0,payload,
+        category:tune.category||classify(base.mechanic,o),origin:'Classic expansion · adaptation',
+        description:`${tune.description||descriptions[base.mechanic]||'Delivers its payload at the landing point.'} ${payload.detail}`,
+        warning:tune.warning||caveat(base.mechanic,o,payload),fidelity:'adaptation',source};
+};
+// Archive names already supplied by the first two classic packs keep that
+// hand-tuned version; they need no alternate spec here.
+const earlierNames=new Set([...classicAdaptations,...earlyClassicAdaptations].map(w=>w.name));
+export const laterClassicAdaptations = reference.slice(125).filter(entry=>specs.has(entry.name)).map(entry=>adaptation(entry.name,entry.source));
+export const laterClassicUnmapped = reference.slice(125).filter(entry=>!specs.has(entry.name)&&!earlierNames.has(entry.name)).map(entry=>entry.name);
 
 // Later official packs, 2020–2025. Source is the publisher's news archive;
 // duplicated names in that archive are represented only once.
 group('Puzzle Box','random','ion',{shots:8,radius:38});
 group('Bouncy Blocker','scatterbuild','foam',{shots:1,dirt:true,rubber:true,enemyTurret:true,radius:24});
-group('Evac','randomblink','foam',{self:true,radius:30});
 group('Battery|Sparkatron','bouncer','ion',{shots:1,bounces:7,radius:32});
 group('Knockback|Bump Rockets','spread','kinetic',{shots:9,spread:.3,force:160,radius:24});
-group('Rampart','pedestal','foam',{self:true,radius:40});
 group('Neutron Beam','rail','ion',{range:950,pierce:true,radius:26});
 group('Zap Stix|Spin Lasers','bouncer','ion',{shots:6,bounces:4,splitMode:'laser',zap:true,range:130,radius:20});
 group('Wrecker|Danger Rope','proximity','magnet',{range:160,force:260,radius:35});
@@ -185,7 +188,6 @@ group('Flywheel','roller','kinetic',{followGround:true,erase:true,dwell:180,forc
 group('Backflip|Fling','repulsor','kinetic',{force:280,radius:80});
 group('Snow Cone','scatterbuild','frost',{shots:9,dirt:true,radius:24});
 group('Icicles','spread','frost',{shots:8,spread:.4,pierce:true,radius:19});
-group('Bridge','bridge','kinetic',{self:true,radius:35});
 group('Steamroller','selfescape','seismic',{self:true,force:240,shots:7,dirt:true,radius:35});
 group('Bungee Punch','proximity','kinetic',{returnToShooter:true,range:65,force:200,radius:42});
 group('Sticks & Stones','split','volatile',{shots:12,splitMode:'bounce',radius:24});
@@ -217,18 +219,10 @@ group('Barrier-Be-Gone','terraincoat','fire',{erase:true,rubber:false,radius:110
 group('Sand Blast','groundwave','seismic',{shots:14,range:400,radius:22});
 group('Upheaval','selfescape','ion',{self:true,force:200,shots:8,radius:31});
 group('Topsy-Turvy','scatterbuild','seismic',{shots:10,dirt:true,spread:2.4,radius:30});
-group('Displacer Beam','rail','magnet',{pierce:true,range:850,force:240,radius:27});
 group('Earthquake|Rumbler','groundwave','seismic',{shots:18,range:700,force:120,radius:24});
-const modernNames = `Puzzle Box|Bouncy Blocker|Evac|Sticker Shock|Barbed Wire|Battery|Knockback|Electric Putty|Sparkatron|Rampart|Neutron Beam|Zap Stix|Wrecker|Wiggle Worm|Six Shooter|Howitzer|Sandstone|Flying Wall|Airburst|Flywheel|Backflip|Snow Cone|Icicles|Bridge|Steamroller|Bungee Punch|Sticks & Stones|Coin Toss|Bombardment|Trench|Rebound Lasers|Ricochet Rifle|Bumper Bowling|Reflex Missile|Magnablobs|Retreat|Super Retreat|Rocket Launch|Firefight|Auto Turrets|Sinker|Spike Pit|Flash Flood|Vacuum Cannon|Foundation|Stomper|Dash|Mineshaft|Warp Missiles|Bump Rockets|Turbo Cannon|Bombs Away|Boring Missiles|Crash Dive|Matter Blaster|Spark Storm|Laser Bots|Lava Flow|Fix-it Foam|Gravity Grenade|Chasm|Bungee Bomb|Nail Gun|Fling|Hover Blocks|Booster Worm|Concrete|Spin Lasers|Mudrunner|Grenade Towers|Gamma Goo|Barrier-Be-Gone|Strip Mine|Sand Blast|Danger Rope|Upheaval|Topsy-Turvy|Displacer Beam|Earthquake|Rumbler`.split('|');
-baseBehaviors.add('randomblink');
-export const modernClassicAdaptations = modernNames.map((name,index)=>{
-    const spec=specs.get(name),o=spec.options;
-    return {id:1000+index,name,behavior:baseBehaviors.has(spec.mechanic)?spec.mechanic:'shell',classicMechanic:baseBehaviors.has(spec.mechanic)?undefined:spec.mechanic,options:o,
-        radius:o.radius||32,strength:o.strength??.65,count:o.shots||5,type:o.self?2:0,payload:payloads.find(p=>p.key===spec.key),category:classify(spec.mechanic,o),origin:'Classic expansion · adaptation',
-        description:`${descriptions[spec.mechanic]||'Delivers its payload at the landing point.'} ${payloads.find(p=>p.key===spec.key).detail}`,
-        warning:caveat(spec.mechanic,o,payloads.find(p=>p.key===spec.key)),fidelity:'adaptation',
-        source:name==='Rumbler'?'https://community.blitwise.com/post/beta-test-3-rumble-chasm-packs-1-week-to-rumble-release-13388365':'https://www.blitwise.com/mikes-dev-blog/category/News'};
-});
+const modernNames = `Puzzle Box|Bouncy Blocker|Sticker Shock|Barbed Wire|Battery|Knockback|Electric Putty|Sparkatron|Neutron Beam|Zap Stix|Wrecker|Wiggle Worm|Six Shooter|Howitzer|Sandstone|Flying Wall|Airburst|Flywheel|Backflip|Snow Cone|Icicles|Steamroller|Bungee Punch|Sticks & Stones|Coin Toss|Bombardment|Trench|Rebound Lasers|Ricochet Rifle|Bumper Bowling|Reflex Missile|Magnablobs|Retreat|Super Retreat|Rocket Launch|Firefight|Auto Turrets|Sinker|Spike Pit|Flash Flood|Vacuum Cannon|Foundation|Stomper|Dash|Mineshaft|Warp Missiles|Bump Rockets|Turbo Cannon|Bombs Away|Boring Missiles|Crash Dive|Matter Blaster|Spark Storm|Laser Bots|Lava Flow|Fix-it Foam|Gravity Grenade|Chasm|Bungee Bomb|Nail Gun|Fling|Hover Blocks|Booster Worm|Concrete|Spin Lasers|Mudrunner|Grenade Towers|Gamma Goo|Barrier-Be-Gone|Sand Blast|Danger Rope|Upheaval|Topsy-Turvy|Earthquake|Rumbler`.split('|');
+export const modernClassicAdaptations = modernNames.map(name=>adaptation(name,
+    name==='Rumbler'?'https://community.blitwise.com/post/beta-test-3-rumble-chasm-packs-1-week-to-rumble-release-13388365':'https://www.blitwise.com/mikes-dev-blog/category/News'));
 
 // IDs and names remain unchanged. Each recipe adds rules to the actual runtime,
 // and exposes the same rules to descriptions, previews and the effects renderer.
@@ -318,7 +312,7 @@ const completedLaterSignatures = {
     'Coin Toss': ['coin-toss', 'A seeded coin flip chooses a normal silver blast or a golden blast with triple damage.'],
     'Bumper Bowling': ['bumper-bowling', 'A rolling cannonball strikes nearby armor for damage determined by its impact speed.'],
     Foundation: ['foundation', 'Builds a brick foundation across the bottom of the battlefield.'],
-    Firefight: ['firefight', 'A nearby hit provokes an immediate countershot using the opponent’s current aim and power.'],
+    Firefight: ['firefight', 'A nearby hit provokes an immediate countershot from the opponent’s current aim and power. The countershot belongs to you: it scores only against the provoked tank and can never hurt you.'],
 };
 [laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
     const signature = completedLaterSignatures[definition.name];

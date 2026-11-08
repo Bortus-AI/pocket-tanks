@@ -19,7 +19,12 @@ export class BlastCache {
 
 
 
+    // Untyped blasts (undefined/null type) never share a cache bucket: their
+    // gradients differ per caller and would otherwise collide under 'undefined'.
+    validType = (type) => type !== undefined && type !== null && type !== ''
+
     addCanvas = (type, subType, canvas) => {
+        if (!this.validType(type) || !canvas) return;
         if (this.exists(type, subType) === true) return;
         
         if (this.existsType(type) === false) {
@@ -41,6 +46,7 @@ export class BlastCache {
 
 
     exists = (type, subType) => {
+        if (!this.validType(type)) return false
         if (this.infoArray.hasOwnProperty(type)) {
             if (this.infoArray[type].hasOwnProperty(subType)) {
                 return true

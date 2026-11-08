@@ -1,13 +1,14 @@
 import { families, payloads } from './catalog';
+import { stableWeaponId } from '../weapon-ids';
 // Explicit adaptations, not claims of binary-identical behavior. Base IDs 0–29
-// keep their existing implementations. New classic IDs are append-only.
+// keep their existing implementations. Every ID comes from weapon-ids.json.
 const returning = [
  ['Jump Jets','jump','kinetic',25,0,1,'Launches your own tank along the turret angle.','You can land in a pit or beside a mine.'],
  ['Digger','rail','seismic',12,.1,1,'Cuts a narrow straight tunnel from the muzzle.','Can remove your own support.'],
  ['Bouncy Dirt','rubber','foam',45,0,1,'Coats nearby ground with reflective rubber.','Reflected shots may come back to you.'],
  ['Bouncy Wall','rubberwall','foam',30,0,1,'Builds a vertical wall of reflective rubber.','Can seal your own firing path.'],
  ['Nuke','shell','kinetic',55,2.4,1,'Compact high-scoring blast.','A close impact can cost you heavily.'],
- ['Mega Nuke','shell','kinetic',110,1.1,1,'An enormous blast with less concentrated scoring.','Wide splash can catch both tanks.'],
+ ['Mega Nuke','shell','kinetic',110,1.5,1,'An enormous blast that outscores the Nuke, spread over a much wider area.','Wide splash can catch both tanks.'],
  ['Laser','laser','ion',12,1,1,'Straight-line energy shot stopped by solid cover.','No ballistic arc over a ridge.'],
  ['Super Laser','rail','ion',24,1.2,1,'Piercing beam cuts through defensive terrain.','A narrow shot requires accurate aim.'],
  ['Railgun','rail','kinetic',16,1.4,1,'A fast penetrating ray cuts a tunnel through earth.','Can open a direct return shot.'],
@@ -25,11 +26,11 @@ const returning = [
  ['Pedestal','pedestal','kinetic',36,0,1,'Raises your tank on a column of earth.','Makes your tank an exposed target.'],
  ['Gravity Well','vortex','magnet',70,.4,1,'Pulls nearby tanks toward the impact.','Can pull the opponent into a better position.'],
  ['Magnet','vortex','magnet',95,.2,1,'Draws nearby tanks into a magnetic trap.','Both tanks respond to the field.'],
- ['Lemon','dud','kinetic',5,.01,1,'An intentionally disappointing tiny pop.','Very poor scoring. Clear a tiny obstruction if you can.'],
+ ['Lemon','dud','kinetic',5,.01,1,'Utility joke shell: an intentionally disappointing tiny pop that is only useful for the plug it leaves.','Almost no scoring damage.'],
  ['Golden Bullet','golden','kinetic',12,.05,1,'One chance in 31 of a huge jackpot; otherwise a dud.','Most shots are nearly useless.'],
  ['Acid Rain','skyfall','acid',20,.45,10,'Calls down corrosive rain over the impact column.','Acid can leave your own armor vulnerable.'],
  ['Acid Bombs','cluster','acid',23,.55,8,'Spreads corrosive bomblets.','Weak individual impacts need follow-up attacks.'],
- ['Fission Bomb','cluster','volatile',28,.8,12,'An apex split scatters volatile warheads.','Delayed blasts and breech backfire are dangerous.'],
+ ['Fission Bomb','cluster','volatile',28,.7,12,'An apex split scatters volatile warheads.','Delayed blasts and breech backfire are dangerous.'],
  ['Flamethrower','barrage','fire',15,.3,9,'A spread of burning projectiles leaves fire patches.','Low damage at long range; fire hurts either player.'],
  ['Fireball','shell','fire',48,.9,1,'Burning impact ignites nearby oil.','Lingering flames punish poor positioning.'],
  ['Earth Mover','excavator','seismic',115,0,1,'Removes a very large volume of earth without direct scoring.','Changes cover rather than winning points.'],
@@ -48,8 +49,8 @@ const returning = [
  ['Strip Mine','trench','seismic',26,.2,15,'Rips a broad line out of the terrain.','May cut away your own escape route.'],
  ['Displacer Beam','rail','magnet',20,.45,1,'A penetrating beam marks armor and excavates a direct path.','This adaptation marks rather than continuously pushing tanks.'],
 ];
-export const classicAdaptations=returning.map(([name,behavior,key,radius,strength,count,description,warning],i)=>({
-    id:400+i,name,behavior,category:families.find(f=>f[1]===behavior)?.[2]||'Classic',radius,strength,count,
+export const classicAdaptations=returning.map(([name,behavior,key,radius,strength,count,description,warning])=>({
+    id:stableWeaponId(name),name,behavior,category:families.find(f=>f[1]===behavior)?.[2]||'Classic',radius,strength,count,
     type:['jump','selfdome','selfrubberdome','well','pedestal','randomblink','longtunnel'].includes(behavior)?2:0,
     payload:name==='Fire + Ice'?{...payloads.find(p=>p.key===key),name:'Fire + Frost'}:payloads.find(p=>p.key===key),description,warning,origin:'Classic expansion · adaptation',
     source:'https://classic.blitwise.com/ptanksdepot.html',
@@ -67,8 +68,8 @@ const earlySignatures = [
  ['Late Bloomer','drillburst','kinetic',23,.6,5,{shots:5},'The landed shell burrows underground, emerges, then launches five upward fragments.','Buried travel is limited; high targets may escape it.'],
  ['Fire Bolt','nonexcavate','fire',38,1.2,1,{decay:true,speed:1.2},'A fast firebolt burns the impact area; flight time weakens the flash.','Long flights burn away much of its initial energy.'],
  ['Color Bomb','proximity','kinetic',14,.4,16,{range:95,shots:16,splitMode:'bounce',bounces:3},'A proximity shell scatters colorful fragments that bounce repeatedly.','Bouncing fragments can return to the firing tank.'],
- ['Potholes','groundwave','seismic',25,.12,13,{shots:13},'A row of small holes destabilizes a broad surface strip.','Harder to traverse for both tanks.'],
- ['Popcorn','roller','kinetic',10,.4,1,{dwell:180,speed:2.7,pop:true,noCrater:true},'A sputtering ground-hugging projectile pops as it moves, leaving the earth intact.','Its small pops need a tank nearby to score.'],
+ ['Potholes','groundwave','seismic',25,.45,13,{shots:13},'A row of small holes destabilizes a broad surface strip.','Harder to traverse for both tanks.'],
+ ['Popcorn','roller','kinetic',18,.85,1,{dwell:180,speed:2.7,pop:true,noCrater:true},'A sputtering ground-hugging projectile pops as it moves, leaving the earth intact.','Its small pops need a tank nearby to score.'],
  ['Sprinkler','split','kinetic',15,.35,18,{shots:18,spread:.2},'At its apex the warhead sprays many small projectiles.','Scattered rounds make self hits very easy.'],
  ['Super Tracer','tracer','kinetic',4,0,10,{shots:10,spread:.08},'Ten angle markers show where a spread of aiming probes lands.','A setup tool with no direct scoring.'],
  ['Super Skipper','bouncer','kinetic',40,.9,1,{bounces:7},'A skipping shell rebounds seven times before its final explosion.','The final landing point is difficult to predict.'],
@@ -97,7 +98,7 @@ const earlySignatures = [
  ['Volcano','pitfall','fire',35,.55,22,{shots:22},'The ground opens and ejects a wide burning eruption.','Short-range eruption can catch the attacker.'],
  ['Fire Storm','split','fire',21,.4,20,{shots:20,splitMode:'bounce',bounces:2},'Splits into a cloud of bouncing fireballs.','Lingering fire patches affect both players.'],
  ['Roman Candle','stream','fire',20,.55,6,{shots:6},'Six sparkling projectiles follow the same firing path in sequence.','Concentrated fire rewards careful aim.'],
- ['Flying Digger','drillburst','seismic',20,.2,1,{shots:1},'A flying charge enters the earth and opens an exit shaft.','Primarily changes cover rather than scoring.'],
+ ['Flying Digger','drillburst','seismic',20,.2,1,{shots:1},'Utility: a flying charge enters the earth and opens an exit shaft. Very light damage.','Primarily changes cover rather than scoring.'],
  ['Comet','split','kinetic',20,.65,6,{shots:6,splitMode:'bounce',bounces:4},'A comet breaks into six energetic bouncing fragments.','The fragments can scatter toward your tank.'],
  ['Sunburn','radiallaser','fire',18,.8,9,{shots:9,orbit:20,range:390},'At impact, nine burning rays fan around a compact emitter ring.','Rays are blocked by dirt.'],
  ['Riptide','split','kinetic',20,.5,10,{shots:10,splitMode:'bounce',bounces:3},'A wide spread of reflective projectiles ripples across the surface.','Strong terrain reflection makes the aftermath unpredictable.'],
@@ -132,8 +133,8 @@ const earlySignatures = [
  ['Gamma Blaster','sweep','magnet',15,.7,11,{shots:11,spread:.065,pierce:true,range:800},'A broad particle fan passes through the terrain and marks nearby armor.','Individual rays are weaker than a concentrated beam.'],
 ];
 
-export const earlyClassicAdaptations=earlySignatures.map(([name,classicMechanic,key,radius,strength,count,options,description,warning],i)=>({
-    id:445+i,name,behavior:'classic',classicMechanic,options,category:['selflaunch','selfescape','selfshelter'].includes(classicMechanic)?'Utility':'Classic',radius,strength,count,
+export const earlyClassicAdaptations=earlySignatures.map(([name,classicMechanic,key,radius,strength,count,options,description,warning])=>({
+    id:stableWeaponId(name),name,behavior:'classic',classicMechanic,options,category:['selflaunch','selfescape','selfshelter'].includes(classicMechanic)?'Utility':'Classic',radius,strength,count,
     type:['selflaunch','selfescape','selfshelter','wavecoat'].includes(classicMechanic)?2:0,
     payload:name==='Fire + Ice'?{...payloads.find(p=>p.key===key),name:'Fire + Frost'}:payloads.find(p=>p.key===key),description,warning,origin:'Classic expansion · adaptation',source:'https://classic.blitwise.com/ptanksdepot.html',
 }));

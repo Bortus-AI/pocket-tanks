@@ -29,3 +29,39 @@ test('device renderer stops idle uploads and disposes its scene texture/listener
  listeners.get('shutdown')();expect(destroy).toHaveBeenCalledTimes(1);expect(scene.textures.remove).toHaveBeenCalledWith('device-fx-test');
  expect(scene.events.off).toHaveBeenCalledWith('update',expect.any(Function));canvas.mockRestore();
 });
+
+const mockScene=(devices=[])=>{
+ const refresh=jest.fn(),listeners=new Map();
+ const scene={sys:{game:{},settings:{key:'t2'}},renderer:{width:1200,height:800},terrain:{height:533},tacticalWorld:{devices},
+  tank1:{x:100,y:300},tank2:{x:900,y:300},
+  events:{on:jest.fn((e,h)=>listeners.set(e,h)),once:jest.fn((e,h)=>listeners.set(e,h)),off:jest.fn()},
+  textures:{exists:jest.fn(()=>false),remove:jest.fn(),addCanvas:jest.fn(()=>({refresh}))},add:{image:()=>({setDepth(){return this;},destroy(){}})}};
+ return {scene,refresh,listeners};
+};
+const proxyContext=()=>new Proxy({},{get:(t,k)=>k in t?t[k]:()=>({addColorStop(){}}),set:(t,k,v)=>{t[k]=v;return true;}});
+test('static devices redraw only on state change and the empty missile path never crashes',()=>{
+ const canvas=jest.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(proxyContext());
+ try{
+  const sentry={id:1,kind:'sentry',x:300,y:300,heading:1,ammo:4,heat:0,owner:null};
+  const {scene,refresh,listeners}=mockScene([sentry]);const fx=devicePresentation(scene),update=listeners.get('update');
+  update(0,16);const first=refresh.mock.calls.length;for(let i=0;i<30;i++)update(0,16);
+  expect(refresh.mock.calls.length).toBe(first);
+  sentry.ammo=3;update(0,16);expect(refresh.mock.calls.length).toBe(first+1);
+  fx.missile(sentry,[]);expect(fx.effects).toHaveLength(0);
+  fx.effects.push({kind:'missile',id:1,path:[],start:fx.time,x:0,y:0});expect(()=>update(0,16)).not.toThrow();
+ }finally{canvas.mockRestore();}
+});
+test('device cues use the sound manager master chain, not context.destination',()=>{
+ const canvas=jest.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(proxyContext());
+ try{
+  const connections=[];const node=()=>({connect:jest.fn(t=>connections.push(t)),disconnect(){},start(){},stop(){},frequency:param(),gain:param(),Q:param(),pan:param(),detune:param(),onended:null});
+  function param(){return {setValueAtTime(){},exponentialRampToValueAtTime(){}};}
+  const destination={name:'context-destination'},master={name:'phaser-master',connect(){}};
+  const context={state:'running',currentTime:0,sampleRate:8000,destination,createOscillator:node,createGain:node,createBiquadFilter:node,createBufferSource:node,
+   createBuffer:(c,l)=>({getChannelData:()=>new Float32Array(l)})};
+  const {scene}=mockScene();scene.sound={context,destination:master,mute:false,play:jest.fn()};
+  devicePresentation(scene).deploy({id:7,x:10,y:10});
+  expect(connections).toContain(master);expect(connections).not.toContain(destination);
+  scene.sound.mute=true;connections.length=0;scene.deployableFX.wreck({id:7,x:10,y:10});expect(connections).toHaveLength(0);
+ }finally{canvas.mockRestore();}
+});

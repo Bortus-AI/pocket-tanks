@@ -102,7 +102,8 @@ export function createPreviewWorld(live,shooter) {
     const terrain=copyTerrain(live.terrain);
     return {terrain,run(entry,rotation,power,launchOnly=false){
         terrain.reset();
-        const scene={terrain,add:new Proxy({},{get:()=>visual}),events:{once:noop,off:noop},cache:{audio:{exists:()=>false}},sound:{play:noop,get:()=>null,stopByKey:noop},tweens:{add:()=>visual()},time:{delayedCall:noop,addEvent:noop}};
+        // isAimPreview: weapons whose outcome must stay hidden (Mystery Box) skip it.
+        const scene={isAimPreview:true,terrain,add:new Proxy({},{get:()=>visual}),events:{once:noop,off:noop},cache:{audio:{exists:()=>false}},sound:{play:noop,get:()=>null,stopByKey:noop},tweens:{add:()=>visual()},time:{delayedCall:noop,addEvent:noop}};
         scene.tank1=copyTank(live.tank1);scene.tank2=copyTank(live.tank2);
         const tank=shooter===live.tank1?scene.tank1:scene.tank2,foe=tank===scene.tank1?scene.tank2:scene.tank1;
         tank.power=power;tank.turret.rotation=rotation;

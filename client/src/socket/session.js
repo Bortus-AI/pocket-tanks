@@ -263,7 +263,7 @@ export const applyOnlineSnapshot=(scene,snapshot)=>{
     });
     if(state.tactics){
         let tactics=state.tactics;
-        if((state.tacticsRole||snapshot.role)===role)tactics={...tactics,states:[...tactics.states].reverse(),scores:tactics.scores?[...tactics.scores].reverse():undefined,zones:tactics.zones.map(zone=>({...zone,owner:zone.owner===1?2:1})),devices:(tactics.devices||[]).map(device=>({...device,owner:device.owner===1?2:1}))};
+        if((state.tacticsRole||snapshot.role)===role)tactics={...tactics,states:Array.isArray(tactics.states)?[...tactics.states].reverse():[],scores:Array.isArray(tactics.scores)?[...tactics.scores].reverse():undefined,zones:(Array.isArray(tactics.zones)?tactics.zones:[]).map(zone=>({...zone,owner:zone.owner===1?2:1})),devices:(Array.isArray(tactics.devices)?tactics.devices:[]).map(device=>({...device,owner:device.owner===1?2:1}))};
         importTactics(scene,tactics);
     }
     scene.activeTank=state.activeRole===role?1:state.activeRole===other?2:0;scene.gameOver=!!state.gameOver;

@@ -3,16 +3,31 @@ import { advanceDrill } from './drill-flight';
 import { shootEarlyEffect, impactEarlyEffect, updateEarlyEffect, disposeEarlyEffect } from './early-classic-effects';
 import { shootLaterEffect, impactLaterEffect, updateLaterEffect, disposeLaterEffect } from './later-classic-effects';
 import { emitWeaponImpact, emitWeaponBeam, createWeaponProjectile, emitWeaponMuzzle, emitTerrainBuild } from '../../graphics/weapon-fx';
-import { applyPayload, splashScore, tankState, addShield, clearStatuses, clearZones, addZone, enemyOf, distance, tanksInRange } from './tactics';
+import { applyPayload, splashScore, scoreHit, safeLaunch, tankState, addShield, clearStatuses, clearZones, addZone, enemyOf, distance, tanksInRange } from './tactics';
 import { withMechanicalRules, installMechanicalRules, applyBuildingPayload, mayReleaseAtApex } from './unique-mechanics';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const builders=['wall','dome','berm','platform','bridge','seed'];
+// Beam contact damage before strength and payload scaling (Rail kinetic ~55).
+export const BEAM_DAMAGE=65;
+// FNV-style mix of integers. Inputs are synced turn data only (weapon id,
+// tactical shot counter, power, turret angle), never settled float positions,
+// so both online clients and the aim preview derive the same seed.
+export const hashSeed=(...values)=>{let h=0x811c9dc5;for(const v of values){h=Math.imul(h^(Math.round(Number(v)||0)|0),16777619)>>>0;h=(h^(h>>>15))>>>0;}return h>>>0;};
+// Mystery Box outcome: depends on the weapon and the synced shot counter only.
+// The aim preview never resolves it (see roulette in impact()).
+// Unstable payload breech backblast (shared with classic runtimes): about -8 self.
+export const volatileBackblast=runtime=>{
+    if(runtime.definition.payload?.key!=='volatile')return 0;
+    const tank=runtime.weapon.tank;return splashScore(runtime.weapon,tank.centre.x,tank.centre.y,15,.5);
+};
+export const rouletteRoll=(id,shot)=>{const h=hashSeed(id,shot,0x5eed);return (Math.imul(h,1664525)+1013904223>>>0)/4294967296;};
 
 export class ExpansionRuntime {
     constructor(definition) {this.definition=withMechanicalRules(definition);this.projectiles=[];this.events=[];this.tick=0;this.done=false;this.dirty=[];if(new.target===ExpansionRuntime)installMechanicalRules(this);}
     create = weapon => {
         this.weapon=weapon;weapon.weaponHandler=this;this.scene=weapon.scene;this.terrain=weapon.terrain;
-        this.seed=(this.definition.id*49157+Math.round(weapon.tank.x)*157+Math.round(weapon.tank.y)*37+weapon.tank.power*19)>>>0;
+        this.shotNumber=this.scene.tacticalWorld?.shot??0;
+        this.seed=hashSeed(this.definition.id,this.shotNumber,weapon.tank.power,(weapon.turret?.rotation??0)*1000);
         this.trail=this.scene.add.graphics().setDepth(3);
         this.color=this.definition.payload.color;
         this.onShutdown = () => this.dispose();
@@ -28,7 +43,16 @@ export class ExpansionRuntime {
     });
     random = () => {this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;};
     schedule = (delay,fn) => {if(this.events.length<80)this.events.push({at:this.tick+Math.max(1,Math.round(delay*60)),fn});};
-    ground = x => {x=clamp(Math.round(x),0,this.terrain.width-1);for(let y=0;y<this.terrain.height;y++)if(this.terrain.getPixel(x,y).alpha>0)return y;return this.terrain.height-1;};
+    // Highest solid row of a column, or null for an empty column.
+    surface = x => {x=clamp(Math.round(x),0,this.terrain.width-1);for(let y=0;y<this.terrain.height;y++)if(this.terrain.getPixel(x,y).alpha>0)return y;return null;};
+    ground = x => this.surface(x)??this.terrain.height-1;
+    // Visible feedback for a delivery that had no effect (off-map, no ground).
+    fizzle = (x,y,label='FIZZLED') => {
+        x=clamp(x,4,this.terrain.width-5);y=clamp(y,8,this.terrain.height-5);
+        emitWeaponImpact(this.scene,x,y,8,this.fxOptions({fizzle:true,small:true}));
+        const text=this.scene.add?.text?.(x,y-18,label,{fontFamily:'Arial',fontSize:13,color:'#e9e2c4'});
+        if(text&&typeof text.setOrigin==='function'){text.setOrigin(.5).setDepth?.(6);if(this.scene.tweens?.add)this.scene.tweens.add({targets:text,y:y-44,alpha:0,duration:900,onComplete:()=>text.destroy?.()});else text.destroy?.();}
+    };
     carve = (x,y,r) => {
         x=clamp(x,0,this.terrain.width-1);y=clamp(y,0,this.terrain.height-1);r=clamp(r,1,120);
         const ctx=this.terrain.context;ctx.save();ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.restore();
@@ -66,11 +90,11 @@ export class ExpansionRuntime {
         this.terrain.context.putImageData(image,left,top);this.terrain.update();
     };
     remove = p => {if(!p.removed){p.removed=true;p.visual.destroy();}};
-    burst = (x,y,r=this.definition.radius,strength=this.definition.strength,withPayload=true) => {
+    burst = (x,y,r=this.definition.radius,strength=this.definition.strength,withPayload=true,withScore=true) => {
         r=clamp(r*this.definition.payload.radius,4,115);y=clamp(y,0,this.terrain.height-1);x=clamp(x,0,this.terrain.width-1);
         this.carve(x,y,r);
-        const damage=splashScore(this.weapon,x,y,r+12,strength*this.definition.payload.damage);
-        emitWeaponImpact(this.scene,x,y,r,this.fxOptions());
+        const damage=withScore?splashScore(this.weapon,x,y,r+12,strength*this.definition.payload.damage):0;
+        emitWeaponImpact(this.scene,x,y,r,this.fxOptions({damageRadius:r+12}));
         if(withPayload)applyPayload(this.weapon,x,y,r,damage,{strength});
     };
     spawn = (x,y,vx,vy,options={}) => {
@@ -82,7 +106,7 @@ export class ExpansionRuntime {
         const {behavior,count}=this.definition, {tank,turret}=this.weapon;
         this.direction=Math.sign(Math.sin(turret.rotation))||1;
         emitWeaponMuzzle(this.scene,turret.x+16*Math.sin(turret.rotation),turret.y-16*Math.cos(turret.rotation),turret.rotation-Math.PI/2,this.fxOptions({heavy:this.definition.radius>65}));
-        if(this.definition.payload.key==='volatile')splashScore(this.weapon,tank.centre.x,tank.centre.y,15,.5);
+        volatileBackblast(this);
         if(shootTetherEffect(this)||shootEarlyEffect(this)||shootLaterEffect(this))return;
         if(['shield','repair','cleanse','kamikaze'].includes(behavior)) {
             if(behavior==='shield')addShield(tank,70);
@@ -97,11 +121,11 @@ export class ExpansionRuntime {
             if(behavior==='selfrubberdome')this.coat(tank.x,tank.y-24,65,true);
             if(behavior==='well')for(let y=0;y<tank.y;y+=22)this.carve(tank.x,y,18);
             if(behavior==='pedestal'){this.build(tank.x,tank.y-30,'wall');tank.setY(tank.y-100);tank.body.updateFromGameObject();tank.settled=false;}
-            if(behavior==='jump'){tank.body.setVelocity(Math.sin(turret.rotation)*tank.power*4,-Math.cos(turret.rotation)*tank.power*4);tank.body.setGravityY(300);tank.settled=false;}
+            if(behavior==='jump')safeLaunch(this.scene,tank,Math.sin(turret.rotation)*tank.power*4,-Math.cos(turret.rotation)*tank.power*4);
             if(behavior==='randomblink'){const x=24+this.random()*(this.terrain.width-48);tank.setPosition(x,this.ground(x)-1);tank.body.updateFromGameObject();tank.body.stop();tank.settled=false;}
             if(behavior==='longtunnel'){for(let x=0;x<this.terrain.width;x+=20){this.carve(x,tank.y+12,16);if(this.definition.options?.rubber)this.coat(x,tank.y+12,24,true);}}
             if(behavior==='cheapshot'){const foe=enemyOf(this.scene,tank);this.burst(foe.centre.x,foe.centre.y);}
-            else applyBuildingPayload(this,tank.x,tank.y,this.definition.radius);
+            else applyBuildingPayload(this,tank.x,tank.y,this.definition.radius,{protectOwner:true});
             return;
         }
         const angle=turret.rotation-Math.PI/2;
@@ -114,22 +138,37 @@ export class ExpansionRuntime {
             const launch=()=>this.spawn(origin.x,origin.y,speed*Math.cos(a),speed*Math.sin(a),{gravity:behavior==='mortar'?180:300});
             if(behavior==='barrage')this.schedule(i*.12,launch);else launch();
         }
-        if(this.scene.cache.audio.exists('launch'))this.scene.sound.play('launch',{volume:.25});
+        // Launch audio is played by the per-weapon signature in weapon-fx (muzzle/projectile).
     };
+    // Beams score their contact once per tank per shot (scaled by strength and
+    // payload damage), apply the payload once at the first contact with the
+    // real damage dealt, and only score the end burst when nothing was hit.
     beam = (origin,angle,piercing) => {
-        let end={...origin};const hit=new Set();
-        for(let step=0;step<(this.definition.options?.range||750);step+=3) {
+        let end={...origin};const owner=this.weapon.tank,hit=this.beamHits||(this.beamHits=new Set());
+        const {strength,payload,options}=this.definition,factor=strength*payload.damage;
+        let contact=null,dealt=0;
+        for(let step=0;step<(options?.range||750);step+=3) {
             const x=origin.x+Math.cos(angle)*step,y=origin.y+Math.sin(angle)*step;
             if(x<0||x>=this.terrain.width||y>=this.terrain.height)break;
             end={x,y};if(y<0)continue;
             const solid=this.terrain.getPixel(x,y).alpha>0;
-            for(const tank of [this.scene.tank1,this.scene.tank2])if(tank.isPointInside(x,y)&&!hit.has(tank)){hit.add(tank);splashScore(this.weapon,x,y,40,1.1);applyPayload(this.weapon,x,y,25,0,{delayed:false});if(this.definition.options?.force){tank.body.setVelocity(Math.cos(angle)*this.definition.options.force,Math.sin(angle)*this.definition.options.force-70);tank.body.setGravityY(300);tank.settled=false;}}
+            let touched=false;
+            for(const tank of [this.scene.tank1,this.scene.tank2])if(tank!==owner&&tank.isPointInside(x,y)&&!hit.has(tank)){
+                hit.add(tank);touched=true;dealt+=scoreHit(owner,tank,BEAM_DAMAGE*factor);
+                if(!contact&&!this.beamContact)contact={x,y};
+                if(options?.force)safeLaunch(this.scene,tank,Math.cos(angle)*options.force,Math.sin(angle)*options.force-70);
+            }
             if(solid){if(piercing){this.carve(x,y,6);}else break;}
-            if(!piercing&&hit.size)break;
+            if(!piercing&&touched)break;
         }
         emitWeaponBeam(this.scene,origin.x,origin.y,end.x,end.y,this.fxOptions({heavy:piercing}));
         this.lastDeliveryPoint=end;
-        this.burst(end.x,end.y);
+        if(contact){
+            this.beamContact=contact;
+            applyPayload(this.weapon,contact.x,contact.y,clamp(this.definition.radius*payload.radius,4,115),dealt,{strength});
+        }
+        const scored=!!this.beamContact;
+        this.burst(end.x,end.y,this.definition.radius,strength,!scored,!scored);
         if(this.definition.mechanicalRules?.includes('border-wrap')&&!this.ruleBeamWrapped&&(end.x<5||end.x>this.terrain.width-5)){
             this.ruleBeamWrapped=true;
             this.beam({x:end.x<5?this.terrain.width-4:4,y:end.y},angle,piercing);
@@ -146,23 +185,44 @@ export class ExpansionRuntime {
             for(let i=0;i<count;i++)this.spawn(x,y,(i-(count-1)/2)*65,30+this.random()*70,{gravity:300,child:true,small:true});
             return;
         }
-        if(['rubber','rubberwall','glue'].includes(behavior)){if(behavior==='rubberwall')this.build(x,y,'wall');this.coat(x,y,behavior==='rubberwall'?110:radius,behavior!=='glue');applyPayload(this.weapon,x,y,radius);return;}
+        if(['rubber','rubberwall','glue'].includes(behavior)){if(behavior==='rubberwall')this.build(x,y,'wall');this.coat(x,y,behavior==='rubberwall'?110:radius,behavior!=='glue');applyPayload(this.weapon,x,y,radius,0,{protectOwner:true});return;}
         if(behavior==='golden'){const jackpot=this.random()<1/31;this.burst(x,y,jackpot?110:6,jackpot?2:.02);return;}
-        if(builders.includes(behavior)){this.build(x,y,behavior);applyBuildingPayload(this,x,y,radius);return;}
+        if(builders.includes(behavior)){this.build(x,y,behavior);applyBuildingPayload(this,x,y,radius,{protectOwner:true});return;}
         if(['mine','oil','acidpool'].includes(behavior)){applyPayload(this.weapon,x,y,radius);addZone(this.scene,this.weapon.tank,behavior==='acidpool'?'acid':behavior,x,y,radius,this.definition.payload.key,this.definition.id);return;}
         if(behavior==='emp'){tanksInRange(this.scene,x,y,radius+20).forEach(t=>{tankState(t).shield=0;tankState(t).frost=2;tankState(t).frostMoves=0;});this.burst(x,y);return;}
-        if(behavior==='blink') {const t=this.weapon.tank;emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());t.setPosition(clamp(x,24,this.terrain.width-24),this.ground(x)-1);t.body.updateFromGameObject();t.body.stop();t.settled=false;emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());applyPayload(this.weapon,x,y,radius);return;}
-        if(behavior==='swap'){const foe=enemyOf(this.scene,this.weapon.tank),t=this.weapon.tank;if(distance(foe.centre,{x,y})<75){const pos={x:t.x,y:t.y};emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());emitWeaponImpact(this.scene,foe.x,foe.y,30,this.fxOptions());t.setPosition(foe.x,foe.y);foe.setPosition(pos.x,pos.y);[t,foe].forEach(tank=>{tank.body.updateFromGameObject();tank.body.stop();tank.settled=false;});}applyPayload(this.weapon,x,y,radius);return;}
+        if(behavior==='blink') {
+            // Ground is sampled in the same clamped column the tank moves to; an
+            // empty column fizzles instead of dropping the tank to the map floor.
+            const t=this.weapon.tank,tx=clamp(Math.round(x),24,this.terrain.width-24),top=this.surface(tx);
+            if(top===null){this.fizzle(tx,y,'NO GROUND');return;}
+            emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());t.setPosition(tx,top-1);t.body.updateFromGameObject();t.body.stop();t.settled=false;emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());
+            applyBuildingPayload(this,tx,top,radius,{protectOwner:true});return;
+        }
+        if(behavior==='swap'){
+            const foe=enemyOf(this.scene,this.weapon.tank),t=this.weapon.tank;
+            if(distance(foe.centre,{x,y})<75){
+                const pos={x:t.x,y:t.y};emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());emitWeaponImpact(this.scene,foe.x,foe.y,30,this.fxOptions());
+                t.setPosition(foe.x,foe.y);foe.setPosition(pos.x,pos.y);[t,foe].forEach(tank=>{tank.body.updateFromGameObject();tank.body.stop();tank.settled=false;});
+                // The payload follows the enemy to your old position.
+                applyBuildingPayload(this,pos.x,pos.y,radius,{protectOwner:true});
+            }else applyBuildingPayload(this,x,y,radius,{protectOwner:true});
+            return;
+        }
         if(behavior==='vortex'||behavior==='repulsor') {
-            tanksInRange(this.scene,x,y,radius+80).forEach(t=>{const sign=behavior==='vortex'?1:-1;const angle=Math.atan2(y-t.y,x-t.x),force=this.definition.options?.force||170;t.body.setVelocity(sign*Math.cos(angle)*force,-force*.94);t.body.setGravityY(300);t.settled=false;});
+            tanksInRange(this.scene,x,y,radius+80).forEach(t=>{const sign=behavior==='vortex'?1:-1;const angle=Math.atan2(y-t.y,x-t.x),force=this.definition.options?.force||170;safeLaunch(this.scene,t,sign*Math.cos(angle)*force,-force*.94);});
         }
         if(behavior==='siphon'){const foe=enemyOf(this.scene,this.weapon.tank);if(distance(foe.centre,{x,y})<radius+20){const stolen=Math.min(25,tankState(foe).shield);tankState(foe).shield-=stolen;addShield(this.weapon.tank,stolen);}}
-        if(behavior==='roulette'){const roll=this.random();if(roll<.3){this.burst(this.weapon.tank.x,this.weapon.tank.y,60,1);return;}this.burst(x,y,roll>.8?105:12,roll>.8?1.8:.08);return;}
+        if(behavior==='roulette'){
+            // The aim preview must not reveal the outcome: it records only the delivery point.
+            if(this.scene.isAimPreview){this.lastDeliveryPoint={x,y};return;}
+            const roll=rouletteRoll(this.definition.id,this.shotNumber);if(roll<.3){this.burst(this.weapon.tank.x,this.weapon.tank.y,60,1);return;}this.burst(x,y,roll>.8?105:12,roll>.8?1.8:.08);return;}
         if(['tunnel','fault','trench','crater','carpet'].includes(behavior)) {
             for(let i=0;i<count;i++)this.schedule(i*.08,()=>{
                 const bx=clamp(x+(behavior==='crater'?0:(i-(behavior==='trench'||behavior==='carpet'?(count-1)/2:0))*22*this.direction),1,this.terrain.width-2);
                 const by=behavior==='crater'?y+i*18:behavior==='fault'?y+i*13:behavior==='tunnel'?y+14:this.ground(bx)+4;
-                this.burst(bx,by,radius,strength,i===0||i===count-1);
+                // Payload on every burst, like cluster/salvo/skyfall; applyPayload
+                // dedupes per-shot effects (fire groups, ion arcs, delayed blasts).
+                this.burst(bx,by,radius,strength);
             });return;
         }
         if(behavior==='skyfall'){
@@ -193,7 +253,11 @@ export class ExpansionRuntime {
                     p.boundaryAxis=p.x<1||p.x>=this.terrain.width-1?'x':'y';
                     p.x=clamp(p.x,1,this.terrain.width-2);p.y=clamp(p.y,1,this.terrain.height-2);this.impact(p);break;
                 }
-                if(p.x<1||p.x>=this.terrain.width-1||p.y>this.terrain.height-1||p.age>720){p.removed=true;p.visual.destroy();break;}
+                if(p.x<1||p.x>=this.terrain.width-1||p.y>this.terrain.height-1||p.age>720){
+                    p.removed=true;p.visual.destroy();
+                    if(!p.child&&['blink','swap','mine','oil','acidpool'].includes(this.definition.behavior))this.fizzle(p.x,Math.max(p.y,10),'OFF MAP');
+                    break;
+                }
                 if(p.y<0)continue;
                 const pixel=this.terrain.getPixel(p.x,p.y);
                 const solid=pixel.alpha>0;

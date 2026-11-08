@@ -1,4 +1,4 @@
-import { addZone, addShield, applyPayload, clearZones, enemyOf, tankState, tanksInRange } from './tactics';
+import { addZone, addShield, applyPayload, clearZones, enemyOf, safeLaunch, tankState, tanksInRange } from './tactics';
 import { createWeaponProjectile } from '../../graphics/weapon-fx';
 
 // These are authored rules, not ID/seed-selected mutations. A recipe changes a
@@ -321,7 +321,7 @@ function aftermath(runtime,p) {
         if(rule==='acid-reservoir')addZone(scene,tank,'acid',x,y,42,'acid',runtime.definition.id);
         if(rule==='cleanse-pulse'){clearZones(scene,x,y,95);tanksInRange(scene,x,y,95).forEach(t=>{const s=tankState(t);s.frost=0;s.frostMoves=0;s.acid=0;s.marked=0;});}
         if(rule==='shield-flip'&&Math.hypot(foe.x-x,foe.y-y)<110){const amount=Math.min(30,tankState(foe).shield);tankState(foe).shield-=amount;addShield(tank,amount);}
-        if(rule==='inward-pull'||rule==='upward-kick')tanksInRange(scene,x,y,115).forEach(t=>{t.body.setVelocity(rule==='inward-pull'?Math.sign(x-t.x)*180:0,-230);t.body.setGravityY(300);t.settled=false;});
+        if(rule==='inward-pull'||rule==='upward-kick')tanksInRange(scene,x,y,115).forEach(t=>safeLaunch(scene,t,rule==='inward-pull'?Math.sign(x-t.x)*180:0,-230));
         if(rule==='aim-scramble')tanksInRange(scene,x,y,85).forEach(t=>t.turret.setRelativeRotation(t.turret.rotation+(runtime.random()<.5?-1:1)*Math.PI/2));
         if(rule==='reverse-fan')for(const offset of [-.25,0,.25])runtime.spawn(x,y-12,-direction*Math.cos(offset)*190,-130+Math.sin(offset)*80,{child:true,small:true});
         if(rule==='sky-echo')runtime.schedule(.65,()=>runtime.spawn(x,-8,0,240,{child:true,small:true}));
@@ -332,12 +332,15 @@ function aftermath(runtime,p) {
     }
 }
 
+const SINE_WEAVE=150;
 function flight(runtime) {
     const rules=runtime.definition.mechanicalRules||[],foe=enemyOf(runtime.scene,runtime.weapon.tank);
     for(const p of runtime.projectiles) {
         if(p.removed||p.child)continue;
         p.ruleClock=(p.ruleClock||0)+1;
-        if(rules.includes('sine-flight'))p.vy+=Math.sin(p.ruleClock*.17)*18;
+        // Zero-mean velocity weave: add the change of a sine velocity offset, so the
+        // round oscillates around its ballistic arc instead of sagging below it.
+        if(rules.includes('sine-flight'))p.vy+=SINE_WEAVE*(Math.sin(p.ruleClock*.17)-Math.sin((p.ruleClock-1)*.17));
         if(rules.includes('zigzag-flight'))p.vx+=Math.floor(p.ruleClock/18)%2?-14:14;
         if(rules.includes('pulse-thrust')&&p.ruleClock%18===0){p.vx*=1.22;p.vy*=1.1;}
         if(rules.includes('wake-cut')&&p.ruleClock%5===0&&p.y>=0)runtime.carve(p.x,p.y+9,7);

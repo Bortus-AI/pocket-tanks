@@ -1,7 +1,7 @@
 import { shootTetherEffect, impactTetherEffect } from './tether-effects';
 import { shootEarlyEffect, impactEarlyEffect } from './early-classic-effects';
 import { shootLaterEffect, impactLaterEffect } from './later-classic-effects';
-import { ExpansionRuntime, makeExpansionWeapon, weaponIcon } from './runtime';
+import { ExpansionRuntime, makeExpansionWeapon, weaponIcon, volatileBackblast } from './runtime';
 import { applyPayload, splashScore, scoreHit, enemyOf, distance, tankState, addZone } from './tactics';
 import { emitWeaponImpact, emitWeaponBeam, createWeaponProjectile, emitWeaponMuzzle, emitTerrainBuild } from '../../graphics/weapon-fx';
 import { withMechanicalRules, installMechanicalRules, applyBuildingPayload, mayReleaseAtApex, continuationOptions } from './unique-mechanics';
@@ -28,12 +28,16 @@ export class ClassicRuntime extends ExpansionRuntime {
         return {x:turret.x+16*Math.cos(angle),y:turret.y+16*Math.sin(angle),angle};
     }
     remove(p) {if(!p.removed){p.removed=true;p.visual.destroy();}}
+    // The shared event queue is bounded; a dropped detonation would leave a
+    // walker, fuse, or ring silently inert, so run it immediately instead.
+    defer(delay,fn) {const before=this.events.length;this.schedule(delay,fn);if(this.events.length===before)fn();}
     fireFrom(x,y,angle,speed,options={}) {
         this.baseSpawn(x,y,Math.cos(angle)*speed,Math.sin(angle)*speed,{gravity:300,...options});
     }
     // Direct rays respect dirt cover, except explicitly piercing signatures.
     ray(x,y,angle,length=300,pierce=false,power=24,reflections=0) {
         const hit=new Set();let end={x,y},remaining=length,heading=angle;
+        power*=this.definition.payload?.damage??1; // rays scale with payload like blasts
         for(let bounce=0;bounce<=Math.min(12,reflections);bounce++){
             const origin={x,y};let collision=null;
             for(let d=4;d<remaining;d+=4) {
@@ -92,10 +96,12 @@ export class ClassicRuntime extends ExpansionRuntime {
         const mode=this.definition.classicMechanic, o=this.options, tank=this.weapon.tank, foe=enemyOf(this.scene,tank), origin=this.origin();
         this.direction=Math.sign(Math.cos(origin.angle))||1;
         emitWeaponMuzzle(this.scene,origin.x,origin.y,origin.angle,this.fxOptions({heavy:this.definition.radius>65}));
+        // Mirrors ExpansionRuntime.shoot: unstable payloads always cost a breech backblast.
+        volatileBackblast(this);
         if(shootTetherEffect(this)||shootEarlyEffect(this)||shootLaterEffect(this))return;
         if(o.enemyTurret){const turret=foe.turret;this.dirtAt((turret.x??foe.x)+Math.sin(turret.rotation)*20,(turret.y??foe.y-12)-Math.cos(turret.rotation)*20,o.radius||24,true);return;}
         if(o.both&&mode==='pitfall'){
-            for(const target of [tank,foe])for(let i=0;i<5;i++)this.schedule(i*.08,()=>this.carve(target.x,target.y+i*18,22));return;
+            for(const target of [tank,foe])for(let i=0;i<5;i++)this.defer(i*.08,()=>this.carve(target.x,target.y+i*18,22));return;
         }
         if(o.force<0)this.impulse(tank,-Math.cos(origin.angle)*Math.abs(o.force),-50);
         if(mode==='selflaunch'){
@@ -127,13 +133,17 @@ export class ClassicRuntime extends ExpansionRuntime {
             return;
         }
         if((mode==='spread'&&o.side)||mode==='sideways') {
-            for(const sign of [-1,1])this.baseSpawn(sign<0?this.terrain.width-4:4,Math.max(15,foe.y-35),sign*250,0,{gravity:0,guided:!!o.guided});return;
+            // Level rounds enter from both world edges at the foe's hull centre,
+            // alternating sides and staggered in pairs so every authored shot counts.
+            const shots=clamp(Math.round(o.shots||2),1,12),targetY=clamp(foe.centre?.y??foe.y-6,15,this.terrain.height-15);
+            for(let i=0;i<shots;i++){const sign=i%2?-1:1;this.defer(Math.floor(i/2)*.15,()=>this.baseSpawn(sign<0?this.terrain.width-4:4,targetY,sign*250,0,{gravity:0,guided:!!o.guided}));}
+            return;
         }
         if(mode==='spread'||mode==='stream'||mode==='tracer'||mode==='roller') {
             const count=o.shots||this.definition.count||(mode==='roller'?1:5);
             for(let i=0;i<count;i++) {
                 const fire=()=>this.fireFrom(origin.x,origin.y,origin.angle+(i-(count-1)/2)*(mode==='stream'?0:(o.spread>=.3?o.spread/Math.max(1,count-1):o.spread||(mode==='roller'?.055:.09))),tank.power*8,{gravity:o.gravity??300,tracerOffset:mode==='tracer'?i-(count-1)/2:null});
-                if(mode==='stream')this.schedule(i*.1,fire);else fire();
+                if(mode==='stream')this.defer(i*.1,fire);else fire();
             }
             return;
         }
@@ -150,7 +160,7 @@ export class ClassicRuntime extends ExpansionRuntime {
         const o=this.options, direction=o.returnToShooter?-this.direction:this.direction;
         const walker={x:p.x,y:p.y,direction,age:0,lastZap:0,visual:createWeaponProjectile(this.scene,p.x,p.y-5,this.fxOptions({behavior:'roller'}))};
         this.walkers.push(walker);
-        this.schedule((o.dwell||150)/60,()=>{
+        this.defer((o.dwell||150)/60,()=>{
             if(walker.done)return;walker.done=true;walker.visual.destroy();
             if(o.dirt)this.dirtAt(walker.x,walker.y,this.definition.radius,!!o.rubber);
             else this.pointBurst(walker.x,walker.y,this.definition.radius,this.definition.strength,!o.noCrater);
@@ -195,22 +205,26 @@ export class ClassicRuntime extends ExpansionRuntime {
             for(let i=0;i<count;i++) {
                 const angle=i/count*Math.PI*2;
                 const bx=x+Math.cos(angle)*(o.orbit||35),by=y-24+Math.sin(angle)*(o.orbit||35);
-                this.schedule(i*.075,()=>{
+                this.defer(i*.075,()=>{
                     if(mode==='ring')this.pointBurst(bx,by,this.definition.radius,this.definition.strength,!o.noCrater);
                     else this.ray(bx,by,mode==='orbitlaser'?Math.atan2(foe.centre.y-by,foe.centre.x-bx):angle,o.range||350,!!o.pierce,this.definition.strength*20);
                 });
             }
+            // A wide ring (orbit beyond its blast reach) closes on its centre so
+            // a tank standing inside is genuinely at risk.
+            const reach=this.definition.radius*(this.definition.payload.radius??1)+12;
+            if(mode==='ring'&&(o.orbit||35)>reach)this.defer(count*.075+.1,()=>this.pointBurst(x,y-12,this.definition.radius,this.definition.strength*.8,!o.noCrater));
             return;
         }
         if(mode==='pitfall'||mode==='pitfirebury') {
-            for(let i=0;i<5;i++)this.schedule(i*.08,()=>{this.pointBurst(x,y+i*18,25,this.definition.strength);if(o.rubber)this.coat(x,y+i*18,33,true);});
-            if(mode==='pitfirebury')this.schedule(.5,()=>{addZone(this.scene,this.weapon.tank,'fire',x,Math.min(y+65,this.terrain.height-5),45,'fire',this.definition.id);this.dirtAt(x,y-7,24);});
-            else this.schedule(.5,()=>this.fragments(x,y-15,o.splitMode||'blast',o.shots||12));
+            for(let i=0;i<5;i++)this.defer(i*.08,()=>{this.pointBurst(x,y+i*18,25,this.definition.strength);if(o.rubber)this.coat(x,y+i*18,33,true);});
+            if(mode==='pitfirebury')this.defer(.5,()=>{addZone(this.scene,this.weapon.tank,'fire',x,Math.min(y+65,this.terrain.height-5),45,'fire',this.definition.id);this.dirtAt(x,y-7,24);});
+            else this.defer(.5,()=>this.fragments(x,y-15,o.splitMode||'blast',o.shots||12));
             return;
         }
         if(mode==='drillburst') {
             const direction=Math.sign(foe.x-x)||this.direction,steps=clamp(Math.round(Math.abs(foe.x-x)/18),4,18);
-            for(let i=0;i<steps;i++)this.schedule(i*.035,()=>{
+            for(let i=0;i<steps;i++)this.defer(i*.035,()=>{
                 const bx=clamp(x+direction*i*18,2,this.terrain.width-3),by=Math.min(this.terrain.height-12,y+22);
                 this.carve(bx,by,12);if(o.rubber)this.coat(bx,by,20,true);
                 if(i===steps-1){for(let yy=by;yy>this.ground(bx)-8;yy-=16)this.carve(bx,yy,12);this.fragments(bx,this.ground(bx)-5,o.splitMode||'blast');}
@@ -228,7 +242,7 @@ export class ClassicRuntime extends ExpansionRuntime {
         }
         if(mode==='groundwave') {
             const count=o.shots||9;
-            for(let i=0;i<count;i++)this.schedule(i*.06,()=>{const bx=clamp(x+(i-(count-1)/2)*(o.range?o.range/Math.max(1,count-1):24),2,this.terrain.width-3),by=this.ground(bx)+4;
+            for(let i=0;i<count;i++)this.defer(i*.06,()=>{const bx=clamp(x+(i-(count-1)/2)*(o.range?o.range/Math.max(1,count-1):24),2,this.terrain.width-3),by=this.ground(bx)+4;
                 if(o.dirt){this.dirtAt(bx,by,this.definition.radius,!!o.rubber);applyPayload(this.weapon,bx,by,this.definition.radius);}
                 else this.pointBurst(bx,by,this.definition.radius,this.definition.strength,!o.noCrater);});
             return;
@@ -249,7 +263,7 @@ export class ClassicRuntime extends ExpansionRuntime {
             const count=clamp(o.shots||5,1,16),span=o.range||100;
             for(let i=0;i<count;i++){
                 const bx=clamp(x+(count===1?0:(i/(count-1)-.5)*span),8,this.terrain.width-9),by=this.ground(bx);
-                this.schedule(i*.045,()=>{
+                this.defer(i*.045,()=>{
                     const height=35+(i%3)*12,ctx=this.terrain.context;ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.fillStyle=o.rubber?'rgb(230,0,230)':'#75886b';ctx.fillRect(bx-8,Math.max(0,by-height),16,height+8);ctx.restore();this.terrain.update();
                     emitTerrainBuild(this.scene,bx,by,'pillar',this.fxOptions({radius:height}));
                     applyBuildingPayload(this,bx,by,height);
@@ -264,12 +278,20 @@ export class ClassicRuntime extends ExpansionRuntime {
             this.pointBurst(x,y,this.definition.radius,o.decay?Math.max(.1,this.definition.strength*(1-p.age/240)):this.definition.strength,false);return;
         }
         if(mode==='projectilelaser') {this.ray(x,y-5,Math.atan2(foe.centre.y-y,foe.centre.x-x),o.range||450,!!o.pierce,this.definition.strength*45);return;}
-        if(mode==='fuse') {this.schedule(o.fuse||1.5,()=>this.pointBurst(x,y,this.definition.radius,this.definition.strength));return;}
+        if(mode==='fuse') {this.defer(o.fuse||1.5,()=>this.pointBurst(x,y,this.definition.radius,this.definition.strength));return;}
         if(mode==='force') {
             const nearby=[this.scene.tank1,this.scene.tank2].filter(t=>distance(t.centre,p)<(o.range||120));
             nearby.forEach(t=>this.impulse(t,Math.sign(t.x-x||this.direction)*(o.force||230),-(o.force||230)*.7));
         }
         this.pointBurst(x,y,this.definition.radius,o.decay?Math.max(.1,this.definition.strength*(1-p.age/240)):this.definition.strength,!o.noCrater);
+    }
+    // Gyro rounds weave around their ballistic path: a bounded perpendicular
+    // offset that never accumulates drift, so the landing point stays aimable.
+    gyroWobble() {return !!this.options.oscillate||this.definition.name==='Gyro Glue';}
+    wobble(p) {
+        const speed=Math.hypot(p.vx,p.vy);if(speed<1)return;
+        const offset=Math.sin((p.age||0)*.22)*7,delta=offset-(p.gyroOffset||0);
+        p.gyroOffset=offset;p.x+=-p.vy/speed*delta;p.y+=p.vx/speed*delta;
     }
     classicFlight() {
         const mode=this.definition.classicMechanic, o=this.options, foe=enemyOf(this.scene,this.weapon.tank);
@@ -279,6 +301,7 @@ export class ClassicRuntime extends ExpansionRuntime {
                 if(p.x+p.vx/60<2){p.x=this.terrain.width-4;p.wraps=(p.wraps||0)+1;}
                 else if(p.x+p.vx/60>this.terrain.width-2){p.x=4;p.wraps=(p.wraps||0)+1;}
             }
+            if(this.gyroWobble()&&!p.child)this.wobble(p);
             if(o.pierce&&(mode==='guided'||mode==='spread'||p.guided)){
                 const step=Math.hypot(p.vx,p.vy)/60,angle=Math.atan2(p.vy,p.vx);
                 p.pierceDistance=(p.pierceDistance||0)+step;

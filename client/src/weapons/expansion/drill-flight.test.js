@@ -64,10 +64,15 @@ test('private preview terrain without a public data buffer snapshots its context
     expect(outcome.impact).toBe(true); expect(runtime.terrain.context.getImageData).toHaveBeenCalledTimes(1);
 });
 
-test('a side exit does not fabricate a basement hit, and child projectiles do not become drills', () => {
+test('a digging drill reaching a side wall detonates at the edge (not the basement), and child projectiles do not become drills', () => {
     const runtime = fixture(() => true);
     const {p, outcome} = fly(runtime, {x: 590, y: 200}, {x: 2, y: 0});
-    expect(p.x).toBeGreaterThanOrEqual(599); expect(outcome.impact).toBe(false);
+    expect(outcome.impact).toBe(true); expect(p.x).toBeCloseTo(599, 7); expect(p.y).toBe(200);
+    const left = fly(fixture(() => true), {x: 10, y: 200}, {x: -2, y: 0});
+    expect(left.outcome.impact).toBe(true); expect(left.p.x).toBeCloseTo(1, 7);
+    // A drill flying through open air off the map is not detonated.
+    const air = fly(fixture(() => false), {x: 590, y: 200}, {x: 2, y: 0});
+    expect(air.outcome.impact).toBe(false);
     expect(advanceDrill(runtime, {x: 100, y: 100, child: true}, {x: 98, y: 100}, {x: 100, y: 100})).toEqual({digging: false, impact: false});
 });
 

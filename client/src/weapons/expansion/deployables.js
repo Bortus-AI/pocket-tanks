@@ -1,9 +1,12 @@
 import { devicePresentation } from './deployable-fx';
+// Circular with tactics.js; only used at call time. worldState() is the single
+// constructor of tactical state, so the mine physics listener is always attached.
+import { worldState } from './tactics';
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const center=tank=>tank.centre||tank;
 const world=scene=>{
-    const state=scene.tacticalWorld||(scene.tacticalWorld={shot:0,zones:[],nextZone:1});
+    const state=worldState(scene);
     if(!state.devices)state.devices=[];
     if(!state.nextDevice)state.nextDevice=1;
     return state;

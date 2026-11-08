@@ -3,7 +3,7 @@ import { terrainProfile } from '../../graphics/terrain-layouts';
 import { installArsenal } from '../../weapons/expansion/browser';
 import { addBattlefield } from '../../graphics/battlefield';
 import { BattleEffects } from '../../graphics/battle-effects';
-import { getWeaponFX } from '../../graphics/weapon-fx';
+import { getWeaponFX, resetTransientWeaponFX } from '../../graphics/weapon-fx';
 import Phaser ,{ Scene, GameObjects, BlendModes, Textures, Display } from 'phaser';
 import { HUD } from '../../classes/HUD';
 import { Tank } from '../../classes/Tank';
@@ -84,6 +84,7 @@ export class MainScene extends Scene {
         this.pendingOnlineTurn = null
         this.turnRequestPending = false
         this.tacticalWorld = null
+        this.fxTurnKey = undefined
         this.createBackground()
         this.createBlastLayer()
         this.createPointsLayer()
@@ -170,6 +171,15 @@ export class MainScene extends Scene {
         processOnlineSession(this)
         saveOnlineMatch(this)
         this.checkSwitchTurn()
+        this.resetFXOnHandoff()
+    }
+
+    // Turn handoff (local switch or an imported online checkpoint) drops
+    // in-flight particles/beams/projectiles; persistent zones are kept.
+    resetFXOnHandoff = () => {
+        const key = `${this.activeTank}:${this.onlineTurnNumber ?? ''}`
+        if (this.fxTurnKey !== undefined && this.fxTurnKey !== key) resetTransientWeaponFX(this)
+        this.fxTurnKey = key
     }
 
 

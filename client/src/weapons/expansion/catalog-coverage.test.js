@@ -17,12 +17,16 @@ test('all 320 names in the archived classic roster are represented', () => {
     expect(reference.filter(weapon => !names.has(weapon.name)).map(weapon => weapon.name)).toEqual([]);
 });
 
-test('80 distinct later expansion names extend the classic roster to 400', () => {
+test('80 later expansion names extend the classic roster to 400', () => {
+    // Five of them (Evac, Rampart, Bridge, Strip Mine, Displacer Beam) are
+    // supplied by the first classic pack, so the modern pack holds 75.
     const archived = new Set(reference.map(weapon => weapon.name));
-    expect(modernClassicAdaptations).toHaveLength(80);
-    expect(new Set(modernClassicAdaptations.map(weapon => weapon.name)).size).toBe(80);
+    expect(modernClassicAdaptations).toHaveLength(75);
+    expect(new Set(modernClassicAdaptations.map(weapon => weapon.name)).size).toBe(75);
     expect(modernClassicAdaptations.filter(weapon => archived.has(weapon.name)).map(weapon => weapon.name)).toEqual([]);
     expect(names.size).toBe(400);
+    expect(laterClassicAdaptations).toHaveLength(179);
+    expect(classics).toHaveLength(370);
 });
 
 test('new designs are separate from named classics and metadata distinguishes adaptations', () => {

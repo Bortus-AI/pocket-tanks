@@ -9,3 +9,13 @@ export const spring = (position, velocity, frequency, dt) => {
     const decay = Math.exp(-frequency * dt), term = velocity + frequency * position;
     return [(position + term * dt) * decay, (velocity - frequency * term * dt) * decay];
 };
+// Live prefers-reduced-motion subscription; returns an unsubscribe function.
+export const watchReducedMotion = listener => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!query) return () => {};
+    const handler = event => listener(!!event.matches);
+    if (typeof query.addEventListener === 'function') { query.addEventListener('change', handler); return () => query.removeEventListener('change', handler); }
+    if (typeof query.addListener === 'function') { query.addListener(handler); return () => query.removeListener(handler); }
+    return () => {};
+};

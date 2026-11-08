@@ -1,4 +1,4 @@
-import { splashScore } from '../weapons/expansion/tactics';
+import { scoreHit, splashScore } from '../weapons/expansion/tactics';
 import { createWeaponProjectile, emitWeaponMuzzle, getWeaponFX } from '../graphics/weapon-fx';
 import { legacyWeaponStyle } from '../graphics/legacy-weapon-style';
 import { legacyMechanicalRules } from '../weapons/expansion/unique-mechanics';
@@ -6,6 +6,9 @@ import Phaser from "phaser";
 import { Turret } from "./Turret";
 import { weaponArray } from "../weapons/array";
 
+// Zero-gravity projectiles (spiderlings) never fall back once they leave the top.
+export const SKY_LIMIT_Y = -200
+let shotSerial = 0
 
 export class Weapon {
     
@@ -26,21 +29,150 @@ export class Weapon {
         const entry = weaponArray[this.id] || weaponArray[0]
         this.weaponHandler = previewHandler || (entry.createInstance ? entry.createInstance() : entry)
         this.allowUpdate = false
+        this.finished = false
+        this.serial = ++shotSerial
+        this.createdTextures = new Set()
         this.legacyVisuals = new Map()
-        this.scene.events.once('shutdown', () => {
-            this.legacyVisuals.forEach(visual => visual.destroy())
-            this.legacyVisuals.clear()
-        })
-        
-        this.create()
+        // One listener per shot: it is removed again in finish(), so a long
+        // match does not accumulate shutdown handlers.
+        this.handleShutdown = () => this.finish()
+        this.scene.events?.once?.('shutdown', this.handleShutdown)
+
+        this.runSafely('create', this.create)
+        if (this.finished) return
 
         // Isolated aim previews advance their own clock and physics.
         if (previewHandler) return
 
-        this.scene.time.delayedCall(500, () => {
-            this.shoot()
-            this.allowUpdate = true
+        this.shotTimer = this.scene.time.delayedCall(500, () => {
+            this.shotTimer = null
+            if (this.finished) return
+            this.runSafely('shoot', this.shoot)
+            if (!this.finished) this.allowUpdate = true
         });
+    }
+
+
+
+    /**
+     * Unique per-shot texture key. Legacy weapons used to share 'projectile',
+     * so overlapping shots or previews removed each other's textures.
+     */
+    texKey = (base) => {
+        const key = `${base}~w${this.id}~s${this.serial}`
+        this.createdTextures.add(key)
+        return key
+    }
+
+
+
+    runSafely = (phase, task) => {
+        try {
+            task()
+        }
+        catch (error) {
+            console.error(`[Weapon] '${this.weaponHandler?.name ?? this.id}' failed during ${phase}; ending the shot.`, error)
+            this.abort()
+        }
+    }
+
+
+
+    handlerObjects = () => {
+        const found = new Set()
+        Object.values(this.weaponHandler || {}).forEach(value => {
+            const objects = Array.isArray(value) ? value : [value]
+            objects.forEach(object => {
+                if (object?.scene === this.scene && object.active && object.body && typeof object.destroy === 'function' &&
+                    object !== this.tank && object !== this.scene.tank1 && object !== this.scene.tank2 && object !== this.turret) found.add(object)
+            })
+        })
+        return [...found]
+    }
+
+
+
+    // Force-finish a shot whose handler threw, so the turn can still advance.
+    abort = () => {
+        this.handlerObjects().forEach(object => {
+            try { object.destroy(true) }
+            catch (error) { console.error('[Weapon] could not destroy a projectile while aborting the shot', error) }
+        })
+        // Expansion runtimes own their projectiles, timers and shutdown hook.
+        if (this.id >= 30) {
+            // finish() disposes and also settles any terrain the runtime already dug,
+            // so an aborted shot leaves the same collapsed terrain on every client.
+            try {
+                if (this.weaponHandler?.finish) this.weaponHandler.finish()
+                else this.weaponHandler?.dispose?.()
+            }
+            catch (error) {
+                console.error('[Weapon] expansion runtime finish failed while aborting the shot', error)
+                try { this.weaponHandler?.dispose?.() } catch (disposeError) { console.error('[Weapon] expansion runtime dispose failed', disposeError) }
+            }
+        }
+        if (this.turret && this.turret.activeWeapon === this) this.turret.activeWeapon = null
+        this.finish()
+    }
+
+
+
+    /** Idempotent end-of-shot cleanup (called by Turret when activeWeapon is cleared). */
+    finish = () => {
+        if (this.finished) return
+        this.finished = true
+        this.allowUpdate = false
+        this.shotTimer?.remove?.(false)
+        this.shotTimer = null
+        this.scene.events?.off?.('shutdown', this.handleShutdown)
+        try {
+            this.weaponHandler?.onShotFinished?.(this)
+        }
+        catch (error) {
+            console.error(`[Weapon] '${this.weaponHandler?.name ?? this.id}' cleanup failed`, error)
+        }
+        // finish() runs from tween/timer callbacks via the activeWeapon setter, so it must never throw.
+        this.legacyVisuals.forEach(visual => {
+            try { visual.destroy() }
+            catch (error) { console.error('[Weapon] could not destroy a shot visual', error) }
+        })
+        this.legacyVisuals.clear()
+        try { this.releaseTextures() }
+        catch (error) { console.error('[Weapon] could not release shot textures', error) }
+    }
+
+
+
+    texturesInUse = () => {
+        const inUse = new Set()
+        const visit = (list, depth) => {
+            if (!Array.isArray(list) || depth > 8) return
+            list.forEach(object => {
+                if (!object || object.active === false) return
+                if (object.texture?.key) inUse.add(object.texture.key)
+                if (object.list) visit(object.list, depth + 1)
+            })
+        }
+        visit(this.scene.sys?.displayList?.list || this.scene.children?.list || [], 0)
+        return inUse
+    }
+
+    // Textures still displayed when the shot ends are retried a few times instead of leaking.
+    releaseTextures = (attempt = 0) => {
+        const textures = this.scene.textures
+        if (!textures?.exists || !textures.remove) return
+        const inUse = this.texturesInUse()
+        this.createdTextures.forEach(key => {
+            if (inUse.has(key)) return
+            if (textures.exists(key)) textures.remove(key)
+            this.createdTextures.delete(key)
+        })
+        if (this.createdTextures.size && attempt < 5 && this.scene.time?.delayedCall && this.scene.sys?.isActive?.() !== false) {
+            this.scene.time.delayedCall(500, () => {
+                try { this.releaseTextures(attempt + 1) }
+                catch (error) { console.error('[Weapon] deferred texture release failed', error) }
+            })
+        }
     }
 
 
@@ -60,26 +192,32 @@ export class Weapon {
 
 
     update = () => {
-        if (this.allowUpdate) {
-            this.weaponHandler.update(this)
-            if (this.id < 30) {
-                // Several originals create secondary physics sprites directly
-                // instead of using defaultShoot (napalm, hail and fragment fans).
-                Object.values(this.weaponHandler).forEach(value => {
-                    const objects = Array.isArray(value) ? value : [value]
-                    objects.forEach(object => {
-                        if (object?.scene === this.scene && object.active && object.body?.velocity && object.canvas?.getContext &&
-                            object !== this.scene.tank1 && object !== this.scene.tank2 && object !== this.turret &&
-                            !/^(tank|turret|wall)/.test(object.texture?.key || '')) this.attachLegacyVisual(object, true)
-                    })
+        if (this.allowUpdate && !this.finished) this.runSafely('update', this.step)
+    }
+
+
+
+    step = () => {
+        this.weaponHandler.update(this)
+        // The handler may have ended the shot during its own update.
+        if (this.finished) return
+        if (this.id < 30) {
+            // Several originals create secondary physics sprites directly
+            // instead of using defaultShoot (napalm, hail and fragment fans).
+            Object.values(this.weaponHandler).forEach(value => {
+                const objects = Array.isArray(value) ? value : [value]
+                objects.forEach(object => {
+                    if (object?.scene === this.scene && object.active && object.body?.velocity && object.canvas?.getContext &&
+                        object !== this.scene.tank1 && object !== this.scene.tank2 && object !== this.turret &&
+                        !/^(tank|turret|wall)/.test(object.texture?.key || '')) this.attachLegacyVisual(object, true)
                 })
-            }
-            this.legacyVisuals.forEach((visual, object) => {
-                if (!object.scene || !object.active) {visual.destroy();this.legacyVisuals.delete(object);return}
-                visual.setPosition(object.x, object.y)
-                visual.setVisible?.(object.visible)
             })
         }
+        this.legacyVisuals.forEach((visual, object) => {
+            if (!object.scene || !object.active) {visual.destroy();this.legacyVisuals.delete(object);return}
+            visual.setPosition(object.x, object.y)
+            visual.setVisible?.(object.visible)
+        })
     }
 
 
@@ -116,7 +254,7 @@ export class Weapon {
         weaponId:this.id,weaponName:this.weaponHandler.name,semanticRules:this.mechanicalRules,angle,small})
 
     attachLegacyVisual = (object, small = false) => {
-        if (this.id >= 30 || this.legacyVisuals.has(object)) return false
+        if (this.finished || this.id >= 30 || this.legacyVisuals.has(object)) return false
         const fx = getWeaponFX(this.scene)
         if (!fx || fx.projectiles?.size >= 128) return false
         const angle = object.body?.velocity ? Math.atan2(object.body.velocity.y,object.body.velocity.x) : object.rotation
@@ -131,6 +269,7 @@ export class Weapon {
 
 
     defaultUpdate = (obj) => {
+        if (!obj?.body) return
         var x = obj.body.x
         var y = obj.body.y
 
@@ -172,8 +311,12 @@ export class Weapon {
             this.weaponHandler.onOutOfBound(this, obj)
         }
         
-        else if (y < 0) {
+        else if (y < SKY_LIMIT_Y && !(obj.body.gravity?.y > 0)) {
+            this.weaponHandler.onOutOfBound(this, obj)
+        }
 
+        else if (y < 0) {
+            // Above the screen: gravity brings ordinary shells back down.
         }
         
         else if (y >= this.terrain.height) {
@@ -205,7 +348,7 @@ export class Weapon {
 
 
     updateTail = (obj, factor, minimum, thickness, color, taper) => {
-        if (this.legacyVisuals.has(obj)) return
+        if (!obj?.body || !obj.canvas || this.legacyVisuals.has(obj)) return
         var tailLength = obj.body.speed / factor + minimum
         //var tailLength = new Phaser.Math.Vector2(obj.velX, obj.velY).length() / factor + minimum
         tailLength = Math.floor(tailLength)
@@ -254,6 +397,14 @@ export class Weapon {
 
 
 
+    // Direct points against one tank, honouring shields, acid and self-hit penalties.
+    scoreTarget = (target, amount) => {
+        if (!target || !Number.isFinite(amount) || amount <= 0) return 0
+        return scoreHit(this.tank, target, amount)
+    }
+
+
+
     defaultDigTerrain = (obj, thickness, intensity) => {
         if (obj.prevState !== null && obj.prevState !== undefined) {
             if (this.terrain.getPixel(obj.prevState.x, obj.prevState.y).alpha === 0 && this.terrain.getPixel(obj.body.x, obj.body.y).alpha === 0) {
@@ -262,18 +413,14 @@ export class Weapon {
                 return
             }
 
-            var x = obj.prevState.x, y = obj.prevState.y;
-            if (this.terrain.getPixel(x, y).alpha === 0) {
-                while (this.terrain.getPixel(x, y).alpha === 0) {
-                    x = obj.prevState.x = obj.prevState.x + Math.cos(obj.rotation)
-                    y = obj.prevState.y = obj.prevState.y + Math.sin(obj.rotation)
-                }
-            }
-            if (this.terrain.getPixel(obj.prevState.x, obj.prevState.y).alpha === 0) {
-                while (this.terrain.getPixel(x, y).alpha !== 0) {
-                    x = obj.prevState.x = obj.prevState.x + Math.cos(obj.rotation)
-                    y = obj.prevState.y = obj.prevState.y + Math.sin(obj.rotation)
-                }
+            // Advance the previous point along the travelled segment until it
+            // enters the terrain (bounded by the segment length).
+            var dx = obj.body.x - obj.prevState.x
+            var dy = obj.body.y - obj.prevState.y
+            var steps = Math.ceil(Math.hypot(dx, dy))
+            for (let i = 0; i < steps && this.terrain.getPixel(obj.prevState.x, obj.prevState.y).alpha === 0; i++) {
+                obj.prevState.x += dx / steps
+                obj.prevState.y += dy / steps
             }
 
             var ctx = this.terrain.getContext()
@@ -308,62 +455,36 @@ export class Weapon {
 
 
     defaultBounce = (obj, factor = 0.6, speed) => {
-        var rotation = 0
-
         if (obj.body.speed === 0) {
             return false
         }
 
-        //console.log('bounce pos', obj.body.center.x, obj.body.center.y)
-        //console.log('bounce velocity', obj.body.velocity.x, obj.body.velocity.y)
-
         if (this.terrain.getPixel(obj.body.prev.x, obj.body.prev.y).alpha > 0) {
-            //console.log('bounce inside terrain', obj.body.prev.x, obj.body.prev.y)
             obj.setPosition(obj.body.prev.x, obj.body.prev.y)
             obj.body.updateFromGameObject()
             return false
         }
 
+        // Callers only bounce a body that has entered terrain: retract it to
+        // the surface and reflect its velocity about the local slope.
         var rotation = obj.body.velocity.angle()
+        var [x, y, prevX, prevY] = this.retractInTerrain(obj)
+        obj.body.x = x
+        obj.body.y = y
 
-        if (this.terrain.getPixel(x, y).alpha !== 0) {
-            var [x, y, prevX, prevY] = this.retractInTerrain(obj)
-            //obj.setPosition(x,y)
-            //obj.body.updateFromGameObject()
-            obj.body.x = x
-            obj.body.y = y
-        
-            var slope = this.terrain.getSlope(prevX, prevY)
-            if (isNaN(slope) === true) {
-                if (obj.body.velocity.x > 0) {
-                    slope = -Math.PI/2
-                }
-                else {
-                    slope = Math.PI/2
-                }
-            }
-
-            //var perpendicular = slope - Math.PI/2
-            //var alpha = perpendicular - rotation
-            var diff = rotation - slope
-            var reflect = slope - diff
-            var newSpeed = speed ? speed : obj.body.speed * factor
-
-            obj.body.velocity.setAngle(reflect)
-            obj.body.velocity.setLength(newSpeed)
-            obj.body.preUpdate(false, 0)
-            //obj.body.updateFromGameObject()
-            //obj.body.updateFromGameObject()
-
-            //console.log('bounce---velocity', obj.body.velocity.x, obj.body.velocity.y)
-            //console.log('bounce---pos', obj.body.center.x, obj.body.center.y)
-            //console.log('bounce---', this.terrain.getPixel(obj.body.center.x, obj.body.center.y))
-            //console.log(reflect)
-
-            return true
+        var slope = this.terrain.getSlope(prevX, prevY)
+        if (isNaN(slope) === true) {
+            slope = obj.body.velocity.x > 0 ? -Math.PI/2 : Math.PI/2
         }
 
-        return false
+        var diff = rotation - slope
+        var reflect = slope - diff
+        var newSpeed = speed ? speed : obj.body.speed * factor
+
+        obj.body.velocity.setAngle(reflect)
+        obj.body.velocity.setLength(newSpeed)
+        obj.body.preUpdate(false, 0)
+        return true
     }
 
 
@@ -563,48 +684,43 @@ export class Weapon {
 
 
 
+    // Pull a projectile that overshot a proximity trigger back along its path
+    // to the trigger radius (bounded; no-op when it is already outside).
     fixCloseToTank = (obj, data) => {
-        var myTank = this.tank
         var oppTank = (this.tank === this.scene.tank1) ? this.scene.tank2 : this.scene.tank1
+        if (data?.oppTankDist === undefined || !oppTank?.centre || !obj?.body) return
 
-        if (data.oppTankDist !== undefined) {
-            var x = obj.body.x
-            var y = obj.body.y
-            var prevX = x, prevY = y;
-            var initX = x, initY = y;
-            var maxCount = 10000
-            var theta = obj.body.velocity.angle()
-            //var theta = Phaser.Math.Angle.Wrap(new Phaser.Math.Vector2(obj.velX, obj.velY).angle() + Math.PI)
-            var sin = Math.sin(theta)
-            var cos = Math.cos(theta)
+        var x = obj.body.x
+        var y = obj.body.y
+        var prevX = x, prevY = y;
+        var initX = x, initY = y;
+        var maxCount = 10000
+        var theta = obj.body.velocity.angle()
+        var sin = Math.sin(theta)
+        var cos = Math.cos(theta)
+        var accelarationX = obj.body.gravity.x
+        var accelarationY = obj.body.gravity.y
+        var t = 0.0001
+        var v = obj.body.speed
+        const inside = (px, py) => Math.hypot(px - oppTank.centre.x, py - oppTank.centre.y) < data.oppTankDist
 
-            var accelarationX = obj.body.gravity.x
-            var accelarationY = obj.body.gravity.y
- 
-            var t = 0.0001
-            var v = obj.body.speed
+        while (v > 0 && inside(x, y)) {
+            prevX = x
+            prevY = y
+            x = initX - (v * cos + 1/2 * accelarationX * t) * t
+            y = initY - (v * sin + 1/2 * accelarationY * t) * t
+            t = t + 0.0001
 
-            while (Phaser.Math.Distance.BetweenPoints(obj.body.x, obj.body.y, oppTank.centre.x, oppTank.centre.y) < data.oppTankDist) {
-                prevX = x
-                prevY = y
-
-                x = initX - (v * cos + 1/2 * accelarationX * t) * t
-                y = initY - (v * sin + 1/2 * accelarationY * t) * t
-                t = t + 0.0001
-
-                maxCount--
-                if (maxCount <= 0) {
-                    x = initX
-                    y = initY
-                    break
-                }
+            maxCount--
+            if (maxCount <= 0) {
+                prevX = initX
+                prevY = initY
+                break
             }
-
-            //obj.setPosition(prevX, prevY)
-            //obj.body.updateFromGameObject()
-            obj.body.x = prevX
-            obj.body.y = prevY
         }
+
+        obj.body.x = prevX
+        obj.body.y = prevY
     }
 
 

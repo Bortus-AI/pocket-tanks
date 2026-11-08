@@ -1,11 +1,11 @@
-import { deployWeaponDevice } from "./deployables";
-jest.mock("./deployables", () => ({ deployWeaponDevice: jest.fn() }));
 import {
   shootLaterEffect,
   impactLaterEffect,
   updateLaterEffect,
   disposeLaterEffect,
 } from "./later-classic-effects";
+import { deployWeaponDevice } from "./deployables";
+jest.mock("./deployables", () => ({ deployWeaponDevice: jest.fn() }));
 
 jest.mock("../../graphics/weapon-fx", () => ({
   emitTerrainBuild: jest.fn(),
@@ -474,4 +474,88 @@ test("Auto Turrets deploy beside their owner without an outgoing capsule", () =>
     heading: 1,
   });
   expect(r.projectiles).toHaveLength(0);
+});
+
+// A small solid-mask terrain: real carving lowers the real ground sample.
+function realTerrain(r, surface = 350) {
+  const { width, height } = r.terrain,
+    solid = new Uint8Array(width * height);
+  for (let y = surface; y < height; y++) solid.fill(1, y * width, (y + 1) * width);
+  const at = (x, y) => {
+    x = Math.round(x);
+    y = Math.round(y);
+    return x >= 0 && x < width && y >= 0 && y < height && solid[y * width + x];
+  };
+  r.terrain.getPixel = (x, y) => ({ alpha: at(x, y) ? 255 : 0, red: 100, green: 110, blue: 90 });
+  r.ground = (x) => {
+    x = clamp(Math.round(x), 0, width - 1);
+    for (let y = 0; y < height; y++) if (solid[y * width + x]) return y;
+    return height - 1;
+  };
+  r.carve = jest.fn((cx, cy, radius) => {
+    for (let y = Math.max(0, Math.floor(cy - radius)); y <= Math.min(height - 1, cy + radius); y++)
+      for (let x = Math.max(0, Math.floor(cx - radius)); x <= Math.min(width - 1, cx + radius); x++)
+        if (Math.hypot(x - cx, y - cy) <= radius) solid[y * width + x] = 0;
+  });
+  return r;
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+test.each(["stomper", "breakout"])(
+  "%s lands on real terrain instead of boring to the map bottom",
+  (key) => {
+    const r = realTerrain(fixture(key));
+    // A steep launch drifts slowly sideways, the worst case for boring.
+    r.scene.tank1.turret.rotation = 0.15;
+    shootLaterEffect(r);
+    let frames = 0,
+      deepest = 0;
+    while (r.laterState && frames < 400) {
+      r.step(1);
+      frames++;
+      deepest = Math.max(deepest, r.scene.tank1.y);
+    }
+    expect(deepest).toBeLessThan(360);
+    expect(r.laterState).toBeNull();
+    expect(frames).toBeLessThan(200);
+    const tank = r.scene.tank1;
+    expect(tank.y).toBeGreaterThan(330);
+    expect(tank.y).toBeLessThan(355);
+    expect(tank.x).toBeGreaterThan(305);
+    expect(tank.x).toBeLessThan(1170);
+    expect(r.ground(tank.x)).toBeLessThan(360);
+  },
+);
+
+test("an actor ended early is released to gravity instead of frozen mid-air", () => {
+  const r = fixture("stomper");
+  shootLaterEffect(r);
+  r.step(10);
+  disposeLaterEffect(r);
+  const tank = r.scene.tank1;
+  expect(tank.body.setGravityY).toHaveBeenLastCalledWith(300);
+  expect(tank.settled).toBe(false);
+});
+
+test("Firefight countershots are credited to the shooter and never cost the shooter points", () => {
+  const r = fixture("firefight");
+  r.scene.tank2.turret.rotation = -Math.PI / 2;
+  impactLaterEffect(r, projectile());
+  const counter = r.projectiles[0];
+  impactLaterEffect(r, { ...counter, x: 300, y: 343 });
+  expect(r.scene.tank1.hits).toBeUndefined();
+  impactLaterEffect(r, { ...counter, x: 720, y: 343, removed: false });
+  expect(r.scene.tank2.hits).toBeGreaterThan(0);
+  expect(r.weapon.tank).toBe(r.scene.tank1);
+});
+
+test("launches that the bounded queue cannot hold fire immediately rather than vanish", () => {
+  const r = fixture("six-shooter");
+  const schedule = r.schedule;
+  r.schedule = (s, fn) => {
+    if (r.events.length < 80) schedule(s, fn);
+  };
+  r.events = Array.from({ length: 80 }, () => ({ at: 1e9, fn() {} }));
+  shootLaterEffect(r);
+  expect(r.projectiles).toHaveLength(6);
 });

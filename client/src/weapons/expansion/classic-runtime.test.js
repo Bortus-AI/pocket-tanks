@@ -101,3 +101,43 @@ test('a gravity-free ricochet returns from the world edge instead of disappearin
  runtime.update();const replacement=runtime.projectiles.find(p=>!p.removed);
  expect(replacement).toBeDefined();expect(replacement.vx).toBeLessThan(0);expect(replacement.classicBounces).toBe(1);
 });
+
+const scored=tank=>tank.updateScore.mock.calls.reduce((sum,[value])=>sum+value,0);
+test('classic volatile weapons pay the same breech backblast as the expansion runtime',()=>{
+ const volatile=[...earlyClassicAdaptations,...laterClassicAdaptations].filter(w=>w.classicMechanic&&w.payload.key==='volatile').map(w=>w.name);
+ expect(volatile.length).toBeGreaterThan(3);expect(volatile).toContain('Chaos Grenade');
+ for(const name of volatile){const {runtime,scene}=setup(name);runtime.shoot();expect([name,scored(scene.tank1)<0]).toEqual([name,true]);}
+ const {runtime,scene}=setup('Ambush');runtime.shoot();expect(scene.tank1.updateScore).not.toHaveBeenCalled();
+});
+test('Side Kick flies at the foe hull centre, honors its shot count and connects on flat ground',()=>{
+ const {runtime,scene}=setup('Side Kick');runtime.options={...runtime.options,shots:6};runtime.shoot();
+ const due=()=>{runtime.tick++;const now=runtime.events.filter(e=>e.at<=runtime.tick);runtime.events=runtime.events.filter(e=>e.at>runtime.tick);now.forEach(e=>e.fn());};
+ for(let i=0;i<30;i++)due();
+ expect(runtime.projectiles).toHaveLength(6);
+ expect(runtime.projectiles.every(p=>p.y===scene.tank2.centre.y&&p.vy===0)).toBe(true);
+ expect(runtime.projectiles.filter(p=>p.vx>0)).toHaveLength(3);
+ expect(scene.tank2.isPointInside(scene.tank2.x,runtime.projectiles[0].y)).toBe(true);
+});
+test('Ambush collapses onto its centre so a tank inside the ring is at risk',()=>{
+ const {runtime,scene}=setup('Ambush');runtime.burst=jest.fn();runtime.shoot();
+ runtime.impact({...runtime.projectiles[0],x:400,y:200});runtime.events.forEach(e=>e.fn());
+ const centre=runtime.burst.mock.calls.find(([x,y])=>x===400&&Math.abs(y-scene.tank2.centre.y)<12);
+ expect(centre).toBeDefined();expect(runtime.burst).toHaveBeenCalledTimes(9);
+});
+test('Gyro Glue weaves around its ballistic path in flight',()=>{
+ const flightPath=(name,still=false)=>{const {runtime}=setup(name);if(still)runtime.gyroWobble=()=>false;runtime.shoot();const p=runtime.projectiles[0];Object.assign(p,{x:300,y:50,vx:200,vy:-200});const ys=[];
+  for(let i=0;i<40;i++){runtime.update();ys.push(p.y);}return ys;};
+ const gyro=flightPath('Gyro Glue'),plain=flightPath('Gyro Glue',true);
+ const deviation=gyro.map((y,i)=>y-plain[i]);
+ expect(Math.max(...deviation)).toBeGreaterThan(2);expect(Math.min(...deviation)).toBeLessThan(-2);
+});
+test('scheduled detonations run immediately when the bounded queue is full',()=>{
+ const {runtime}=setup('Mega Cruiser');runtime.shoot();runtime.pointBurst=jest.fn();
+ runtime.events=Array.from({length:80},()=>({at:1e9,fn(){}}));
+ runtime.impact({...runtime.projectiles[0],x:400,y:200});
+ expect(runtime.walkers[0].done).toBe(true);expect(runtime.pointBurst).toHaveBeenCalledTimes(1);
+});
+test('classic rays scale their damage by the payload like blasts do',()=>{
+ const {runtime,scene}=setup('sweep');runtime.definition={...runtime.definition,payload:{...runtime.definition.payload,damage:.5}};
+ runtime.ray(300,194,0,200,true,40);expect(scored(scene.tank1)).toBeCloseTo(20);
+});

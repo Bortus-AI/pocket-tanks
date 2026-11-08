@@ -77,6 +77,8 @@ export function advanceDrill(runtime, projectile, from, to) {
     const digging = !!projectile.drillTerrain;
     if (!digging) return empty();
     if (impactAt === null && basement <= 1 && basement <= side && basement >= 0) impactAt = basement;
+    // A digging drill that reaches a side wall detonates at the edge instead of vanishing.
+    if (impactAt === null && side <= 1 && side < basement && side >= 0) impactAt = side;
     if (impactAt !== null) {
         projectile.x = from.x + dx * impactAt;
         projectile.y = from.y + dy * impactAt;

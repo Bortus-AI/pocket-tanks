@@ -75,3 +75,71 @@ test('import preserves the tactical listener and allocates unique future zone ID
  expect(worldState(s).zones.map(z=>z.id)).toEqual([40,41]);expect(s.physics.world.on).toHaveBeenCalledTimes(1);
  const stop=s.events.once.mock.calls[0][1];stop();expect(s.physics.world.off).toHaveBeenCalledWith('worldstep',s.physics.world.on.mock.calls[0][1]);
 });
+
+test('importTactics merges defaults: missing/garbage fields never become NaN, missing arrays are tolerated',()=>{
+ const s=scene();expect(()=>importTactics(s,{states:[{shield:'x'},{frost:2}]})).not.toThrow();
+ expect(tankState(s.tank1)).toEqual({shield:0,frost:2,frostMoves:0,acid:0,marked:0,foam:0});
+ expect(tankState(s.tank2).shield).toBe(0);expect(worldState(s).shot).toBe(0);expect(worldState(s).zones).toEqual([]);
+ // A shield restored from a partial snapshot still absorbs and depletes normally.
+ expect(scoreHit(s.tank1,s.tank2,30)).toBe(30);expect(s.tank1.score).toBe(30);
+ importTactics(s,{shot:NaN,states:[{shield:999}],zones:[{kind:'mine',x:200,y:100,radius:30,owner:1},{kind:'bogus',x:1,y:1,radius:5},{kind:'fire',x:NaN,y:1,radius:5}]});
+ expect(tankState(s.tank2).shield).toBe(150);expect(worldState(s).zones).toHaveLength(1);
+ const mine=worldState(s).zones[0];expect(Number.isFinite(mine.armedAt)).toBe(true);expect(Number.isFinite(mine.ttl)).toBe(true);
+ expect(()=>importTactics(s,{})).not.toThrow();expect(()=>importTactics(s,null)).not.toThrow();
+});
+test('ion arcs each marked tank once per shot even across many bomblets',()=>{
+ const s=scene();tankState(s.tank2).marked=2;const w=weapon(s,'ion');
+ for(let i=0;i<7;i++)applyPayload(w,300,100,20);
+ expect(s.tank1.score).toBe(24);
+});
+test('fire patches from one shot are capped and burn a tank once per shot',()=>{
+ const s=scene();const w=weapon(s,'fire');for(let i=0;i<5;i++)applyPayload(w,300+i*5,100,40);
+ expect(worldState(s).zones.filter(z=>z.kind==='fire')).toHaveLength(3);
+ beginTacticalShot(s,s.tank2);expect(s.tank1.score).toBe(12);
+});
+test('protectOwner keeps fire, foam mounds and volatile blasts off the owner',()=>{
+ const s=scene();const schedule=jest.fn();
+ applyPayload(weapon(s,'fire'),100,100,30,0,{protectOwner:true});expect(worldState(s).zones).toHaveLength(0);
+ const w={scene:s,tank:s.tank1,weaponHandler:{definition:{payload:{key:'volatile',radius:1.15},strength:1},schedule,burst:jest.fn()}};
+ applyPayload(w,110,100,30,0,{protectOwner:true});expect(schedule).not.toHaveBeenCalled();
+ applyPayload(w,300,100,30,0,{protectOwner:true});applyPayload(w,300,100,30,0,{protectOwner:true});expect(schedule).toHaveBeenCalledTimes(1);
+});
+test('a mine ignores its owner until the owner has been clear of it, then triggers on return',()=>{
+ const s=scene();s.terrain={context:{save:jest.fn(),restore:jest.fn(),beginPath:jest.fn(),arc:jest.fn(),fill:jest.fn()},update:jest.fn(),fixTerrain:jest.fn()};
+ addZone(s,s.tank1,'mine',100,100,35,'kinetic');
+ beginTacticalShot(s,s.tank2);beginTacticalShot(s,s.tank1);expect(worldState(s).zones).toHaveLength(1);expect(s.tank1.score).toBe(0);
+ const {checkTacticalMines}=require('./tactics');
+ s.tank1.centre={x:200,y:100};checkTacticalMines(s);expect(worldState(s).zones).toHaveLength(1);
+ s.tank1.centre={x:100,y:100};checkTacticalMines(s);expect(worldState(s).zones).toHaveLength(0);expect(s.tank1.score).toBe(-50);
+ expect(expansionCatalog.find(w=>w.name==='Impact Buried Gift').warning).toMatch(/ignores you until you have moved clear/);
+});
+test('shields decay by a quarter (min 5) when their owner fires, never below zero',()=>{
+ const s=scene();addShield(s.tank1,100);addShield(s.tank2,100);
+ beginTacticalShot(s,s.tank1);expect(tankState(s.tank1).shield).toBe(75);expect(tankState(s.tank2).shield).toBe(100);
+ tankState(s.tank1).shield=12;beginTacticalShot(s,s.tank1);expect(tankState(s.tank1).shield).toBe(7);
+ tankState(s.tank1).shield=3;beginTacticalShot(s,s.tank1);expect(tankState(s.tank1).shield).toBe(0);
+});
+test('device damage scales with weapon strength and payload damage',()=>{
+ const {deploySentries}=require('./deployables');
+ const make=()=>{const s=scene();s.terrain={width:1200,height:500,getPixel:(x,y)=>({alpha:y>=200?255:0}),context:{},update:jest.fn()};s.tank1.y=200;deploySentries(s,s.tank1,{x:500,y:200},1);return s;};
+ const weak=make(),strong=make();
+ const hit=(s,strength)=>applyPayload({scene:s,tank:s.tank1,weaponHandler:{definition:{payload:{key:'kinetic',damage:1},strength}}},500,190,40);
+ hit(weak,.1);hit(strong,1);
+ expect(worldState(weak).devices[0].health).toBeGreaterThan(worldState(strong).devices[0]?.health??-Infinity);
+});
+test('deployables build tactical state through worldState, so the mine listener is attached',()=>{
+ const {deploySentries}=require('./deployables');const s=scene();s.physics={world:{on:jest.fn(),off:jest.fn()}};s.events={once:jest.fn()};
+ s.terrain={width:1200,height:500,getPixel:(x,y)=>({alpha:y>=200?255:0})};deploySentries(s,s.tank1,{x:500,y:200});
+ expect(s.physics.world.on).toHaveBeenCalledWith('worldstep',expect.any(Function));
+});
+test('catalog balance and truthful support text',()=>{
+ expect(expansionCatalog.find(w=>w.name==='Impact Bore Lance').strength).toBe(1);
+ expect(expansionCatalog.find(w=>w.name==='Unstable Howitzer').payload.damage).toBe(.9);
+ const ember=expansionCatalog.find(w=>w.name==='Ember Aegis'),tremor=expansionCatalog.find(w=>w.name==='Tremor Field Medic'),unstable=expansionCatalog.find(w=>w.name==='Unstable Aegis');
+ expect(ember.description).not.toMatch(/burning patch/);expect(tremor.description).not.toMatch(/excavation/);expect(unstable.description).not.toMatch(/delayed second explosion/);
+ expect(expansionCatalog.find(w=>w.name==='Impact Aegis').warning).toMatch(/quarter of their charge/);
+});
+test('fire burns away foam as well as thawing frost',()=>{
+ const s=scene();tankState(s.tank2).foam=1;tankState(s.tank2).frost=2;applyPayload(weapon(s,'fire'),300,100,30);
+ expect(tankState(s.tank2)).toMatchObject({foam:0,frost:0});
+});

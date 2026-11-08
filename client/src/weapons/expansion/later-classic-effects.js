@@ -52,13 +52,22 @@ function end(runtime) {
   runtime.events = runtime.events.filter((event) => event !== state.hold);
   state.label?.destroy();
   if (state.tank) {
+    // Release the actor to ordinary physics: early ends (side clamp, age or
+    // hold timeout) may leave it airborne, and the settler must drop it.
     state.tank.body?.stop();
-    state.tank.body?.setGravityY(0);
-    state.tank.settled = true;
+    state.tank.body?.setGravityY(300);
+    state.tank.settled = false;
     if (Number.isFinite(state.initialRotation))
       state.tank.rotation = state.initialRotation;
   }
   runtime.laterState = null;
+}
+
+// The weapon event queue is bounded; never drop a launch or detonation.
+function defer(runtime, delay, fn) {
+  const before = runtime.events.length;
+  runtime.schedule(delay, fn);
+  if (runtime.events.length === before) fn();
 }
 
 function positionTank(tank, x, y) {
@@ -495,7 +504,7 @@ export function shootLaterEffect(runtime) {
   if (key === "jump-rope" || key === "six-shooter") {
     const shots = key === "six-shooter" ? 6 : 16;
     for (let i = 0; i < shots; i++)
-      runtime.schedule(i * 0.07, () =>
+      defer(runtime, i * 0.07, () =>
         launch(
           runtime,
           turret.rotation -
@@ -513,14 +522,28 @@ export function shootLaterEffect(runtime) {
 export function impactLaterEffect(runtime, projectile) {
   const key = effect(runtime);
   if (!key || projectile.removed) return false;
-  if (projectile.returnFire && projectile.owner) {
-    const shooter = runtime.weapon.tank;
+  if (projectile.returnFire) {
+    // Firefight design: the provoked countershot is the opponent's gun being
+    // set off by your round, so it belongs to you. It craters terrain wherever
+    // it lands but scores only against the provoked tank and never against
+    // its owner, so firing Firefight can never be net negative.
     remove(projectile);
-    runtime.weapon.tank = projectile.owner;
-    try {
-      runtime.burst(projectile.x, projectile.y, 35, 0.7);
-    } finally {
-      runtime.weapon.tank = shooter;
+    const shooter = runtime.weapon.tank,
+      provoked = projectile.owner || foeOf(runtime),
+      r = 35,
+      cx = clamp(projectile.x, 0, runtime.terrain.width - 1),
+      cy = clamp(projectile.y, 0, runtime.terrain.height - 1);
+    runtime.carve(cx, cy, r);
+    emitWeaponImpact(runtime.scene, cx, cy, r, runtime.fxOptions());
+    if (provoked !== shooter) {
+      const d = provoked.isPointInside?.(cx, cy)
+        ? 0
+        : Math.hypot(provoked.centre.x - cx, provoked.centre.y - cy);
+      const amount =
+        Math.max(0, r + 12 - d) *
+        0.7 *
+        (runtime.definition.payload?.damage ?? 1);
+      if (amount > 0) scoreHit(shooter, provoked, amount);
     }
     return true;
   }
@@ -612,7 +635,7 @@ export function impactLaterEffect(runtime, projectile) {
     remove(projectile);
     const count = runtime.options.shots || 7;
     for (let i = 0; i < count; i++)
-      runtime.schedule(i * 0.06, () => {
+      defer(runtime, i * 0.06, () => {
         runtime.ray(
           x,
           y - 12,
@@ -723,7 +746,7 @@ export function impactLaterEffect(runtime, projectile) {
     const count =
       runtime.definition.options?.shots || runtime.definition.count || 8;
     for (let i = 0; i < count; i++)
-      runtime.schedule(i * 0.09, () => {
+      defer(runtime, i * 0.09, () => {
         const sx = i % 2 ? runtime.terrain.width - 4 : 3,
           sy = i % 4 < 2 ? -6 : Math.max(16, y * 0.35),
           dx = x - sx,
@@ -883,6 +906,7 @@ export function updateLaterEffect(runtime) {
   }
   state.age++;
   const previousVy = state.vy;
+  const rising = state.vy < 0;
   state.vy += 300 / 60;
   state.x = clamp(state.x + state.vx / 60, 20, runtime.terrain.width - 20);
   state.y += state.vy / 60;
@@ -901,12 +925,20 @@ export function updateLaterEffect(runtime) {
     if (state.y >= state.targetY) end(runtime);
     return;
   }
-  if (state.kind === "breakout") runtime.carve(state.x, state.y - 6, 24);
+  // Sample the landing surface before this frame's excavation. Escape carving
+  // below the hull only happens while rising; on the way down a carve that
+  // reaches under the tank would keep lowering the ground and bore to the
+  // bottom of the map instead of landing.
+  const landing = runtime.ground(state.x) - 1;
+  if (state.kind === "breakout" && rising)
+    runtime.carve(state.x, state.y - 6, 24);
   if (state.kind === "upheaval" && state.vy < 0)
     runtime.carve(state.x, state.y - 10, 22);
   if (state.kind === "stomper") {
     state.tank.rotation = state.initialRotation + state.age * 0.18;
-    runtime.carve(state.x, state.y + 2, 22);
+    // Descending, clear only the hull-height path ahead (never below it).
+    if (rising) runtime.carve(state.x, state.y + 2, 22);
+    else runtime.carve(state.x, state.y - 14, 12);
     const foe = foeOf(runtime);
     if (
       !state.hit &&
@@ -936,11 +968,11 @@ export function updateLaterEffect(runtime) {
       state.fired = true;
     }
     if (state.kind === "leap-frog") {
-      laserAtFoe(runtime, state.tank, 23);
+      laserAtFoe(runtime, state.tank, 11);
       state.fired = true;
     }
   }
-  const ground = runtime.ground(state.x) - 1;
+  const ground = landing;
   if (state.vy >= 0 && state.y >= ground) {
     positionTank(state.tank, state.x, ground);
     if (
@@ -949,7 +981,7 @@ export function updateLaterEffect(runtime) {
       state.x > 22 &&
       state.x < runtime.terrain.width - 22
     ) {
-      laserAtFoe(runtime, state.tank, 18);
+      laserAtFoe(runtime, state.tank, 8);
       state.y = ground - 2;
       state.vy = -200;
       state.fired = false;

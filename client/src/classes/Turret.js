@@ -151,8 +151,24 @@ export class Turret extends GameObjects.Sprite {
 
 
 
+    // Clearing (or replacing) the active weapon ends that shot: its shutdown
+    // listener, timers and per-shot textures are released exactly once.
+    get activeWeapon() {
+        return this._activeWeapon ?? null
+    }
+
+    set activeWeapon(weapon) {
+        const previous = this._activeWeapon ?? null
+        this._activeWeapon = weapon ?? null
+        if (previous && previous !== this._activeWeapon) previous.finish?.()
+    }
+
+
+
     shoot = (selectedWeapon) => {
-        this.activeWeapon = new Weapon(this.scene, this.tank, selectedWeapon) 
+        const weapon = new Weapon(this.scene, this.tank, selectedWeapon)
+        // A weapon whose create() failed has already cleaned itself up.
+        this.activeWeapon = weapon.finished ? null : weapon
     }
 
 
