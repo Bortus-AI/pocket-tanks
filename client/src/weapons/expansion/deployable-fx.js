@@ -1,3 +1,5 @@
+import { weaponArt } from '../../graphics/weapon-art';
+import { drawOwnedFrame } from '../../graphics/weapon-art/frames';
 // Presentation-only device renderer. All firing/terrain results are computed at
 // accepted shot boundaries; these animations never modify combat state.
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -31,7 +33,7 @@ class DevicePresentation {
             gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(kind==='burst'?.035:.018,now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+preset[2]);osc.start(now);osc.stop(now+preset[2]+.02);
         }catch{}
     }
-    add(kind,device,data={}){if(this.effects.length>=48)this.effects.shift();this.effects.push({kind,id:device.id,x:device.x,y:device.y,start:this.time,...data});this.sound(kind);}
+    add(kind,device,data={}){if(this.effects.length>=48)this.effects.shift();const weaponId=device.weaponId??{sentry:731,silo:692,runner:566}[device.kind];const art=this.scene.weaponFX?.owned.get(weaponArt({weaponId}));this.effects.push({kind,id:device.id,weaponId,art,x:device.x,y:device.y,start:this.time,...data});this.sound(kind);}
     deploy(device){this.births.set(device.id,this.time);this.add('deploy',device);}
     burst(device,shots){this.add('burst',device,{shots});}
     lock(device){this.add('lock',device);}
@@ -93,6 +95,7 @@ class DevicePresentation {
         });
     }
     drawEffect(c,e){
+        if(e.art){this.drawOwnedEffect(c,e);return;}
         const age=this.time-e.start;c.save();
         if(e.kind==='burst')this.drawShots(c,e.shots,age);
         if(e.kind==='run'){c.globalAlpha=clamp(1-age/750,0,1)*.6;for(let i=0;i<4;i++)stroke(c,'#67dce3',1,[{x:e.from.x-i*5,y:e.from.y-21+i*3},{x:e.to.x-i*5,y:e.to.y-21+i*3}]);c.globalAlpha=1;this.drawShots(c,e.shots,age,e);}
@@ -104,6 +107,34 @@ class DevicePresentation {
         if(['deploy','wreck','vent'].includes(e.kind)){
             const t=age/1000;c.globalAlpha=clamp(1-age/650,0,1);
             for(let i=0;i<8;i++){const dx=(i-3.5)*(e.kind==='wreck'?19:9)*t,dy=e.kind==='vent'?-20*t: -32*t+60*t*t;c.fillStyle=e.kind==='vent'?'#c9d9d1':e.kind==='wreck'?'#bd9270':'#b4ab89';c.fillRect(e.x+dx,e.y-8+dy-(i%3)*3,2+i%2,2+i%3);}
+        }
+        c.restore();
+    }
+    drawOwnedTexture(c,art,channel,progress,x,y,size,angle=0){
+        const counts={impact:12,body:2,trail:3,residue:3,muzzle:2,beam:2,debris:1},index=Math.min(counts[channel]-1,Math.floor(clamp(progress,0,1)*counts[channel]));
+        const name=`${channel}-${index}`;c.save();c.translate(x,y);c.rotate(angle);
+        const origin=['impact','residue'].includes(channel)?.85:.5;drawOwnedFrame(c,art,name,-size/2,-size*origin,size,size);c.restore();
+    }
+    drawOwnedEffect(c,e){
+        const age=this.time-e.start,art=e.art;c.save();
+        if(e.kind==='burst'||e.kind==='run'){
+            if(e.kind==='run')for(let i=0;i<5;i++){const t=i/5;c.globalAlpha=.35*(1-age/950);this.drawOwnedTexture(c,art,'trail',age/950,e.from.x+(e.to.x-e.from.x)*t,e.from.y-18,35);}
+            c.globalAlpha=1;
+            e.shots.forEach((shot,index)=>{
+                const a=age-deviceShotDelay(e,shot,index);if(a<0||a>220)return;
+                const f=clamp(a/110,0,1),dx=shot.to.x-shot.from.x,dy=shot.to.y-shot.from.y,angle=Math.atan2(dy,dx);
+                if(a<110)this.drawOwnedTexture(c,art,'body',f,shot.from.x+dx*f,shot.from.y+dy*f,28,angle);
+                if(a<55)this.drawOwnedTexture(c,art,'muzzle',a/55,shot.from.x,shot.from.y,34,angle);
+                if(shot.hit&&a>110)this.drawOwnedTexture(c,art,'impact',(a-110)/110,shot.to.x,shot.to.y,55);
+            });
+        }else if(e.kind==='missile'){
+            const f=clamp(age/760,0,1),index=Math.min(e.path.length-1,Math.floor(f*(e.path.length-1))),p=e.path[index],previous=e.path[Math.max(0,index-1)];
+            if(f<1){
+                for(let i=Math.max(0,index-12);i<index;i+=3){c.globalAlpha=(i-index+15)/15*.7;this.drawOwnedTexture(c,art,'trail',(index-i)/15,e.path[i].x,e.path[i].y,31);}
+                c.globalAlpha=1;this.drawOwnedTexture(c,art,'body',f,p.x,p.y,48,angleTo(previous,p));
+            }else this.drawOwnedTexture(c,art,'impact',(age-760)/290,p.x,p.y,125);
+        }else if(['deploy','wreck','vent'].includes(e.kind)){
+            c.globalAlpha=clamp(1-age/650,0,1);this.drawOwnedTexture(c,art,e.kind==='wreck'?'impact':'residue',age/650,e.x,e.y,e.kind==='wreck'?80:55);
         }
         c.restore();
     }

@@ -48,9 +48,10 @@ export const deployWeaponDevice=(weapon,kind,options={})=>{
     const scene=weapon.scene;
     if(!scene.terrain&&weapon.terrain)scene.terrain=weapon.terrain;
     const point=options.point||{x:weapon.tank.x,y:weapon.tank.y},heading=options.heading||1;
-    if(kind==='autoturrets')return deploySentries(scene,weapon.tank,point,heading,options.config);
-    if(kind==='missileturret')return deployMissileSilo(scene,weapon.tank,point,heading,options.config);
-    if(kind==='runngun')return deployRunGun(scene,weapon.tank,point,heading,options.config);
+    const config={...options.config,weaponId:weapon.id??weapon.weaponHandler?.definition?.id??{autoturrets:731,missileturret:692,runngun:566}[kind]};
+    if(kind==='autoturrets')return deploySentries(scene,weapon.tank,point,heading,config);
+    if(kind==='missileturret')return deployMissileSilo(scene,weapon.tank,point,heading,config);
+    if(kind==='runngun')return deployRunGun(scene,weapon.tank,point,heading,config);
     return null;
 };
 

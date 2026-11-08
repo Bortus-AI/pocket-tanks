@@ -2,6 +2,8 @@ import { saveOnlineMatch, getOnlinePresenceText, parkOnlineMatch, processOnlineS
 import { terrainProfile } from '../../graphics/terrain-layouts';
 import { installArsenal } from '../../weapons/expansion/browser';
 import { addBattlefield } from '../../graphics/battlefield';
+import { BattleEffects } from '../../graphics/battle-effects';
+import { getWeaponFX } from '../../graphics/weapon-fx';
 import Phaser ,{ Scene, GameObjects, BlendModes, Textures, Display } from 'phaser';
 import { HUD } from '../../classes/HUD';
 import { Tank } from '../../classes/Tank';
@@ -65,6 +67,10 @@ export class MainScene extends Scene {
 
 
     create = () => {
+        // Arcade copies final body positions back to sprites in POST_UPDATE.
+        // Commit/reconcile turns after that copy, before drawing presentation.
+        this.events.on('postupdate', this.finishFrame)
+        this.events.once('shutdown', () => this.events.off('postupdate', this.finishFrame))
         if (this.winnerBlastTween !== null) {
             this.winnerBlastTween.stop()
             this.winnerBlastTween = null
@@ -105,6 +111,8 @@ export class MainScene extends Scene {
         this.terrainLabel=this.add.text(this.renderer.width/2,50,terrainProfile(this.terrain.layoutKind).name.toUpperCase(),{fontFamily:'Arial',fontSize:12,color:'#ced8c1',letterSpacing:3}).setOrigin(.5).setDepth(6)
         this.createHUD()
         installArsenal(this)
+        getWeaponFX(this)
+        this.battleFX = new BattleEffects(this)
         if(this.sceneData.gameType===3)this.onlineTurnStatus=this.add.text(this.renderer.width/2,124,'',{fontFamily:'Arial',fontSize:13,color:'#d3d9bf',backgroundColor:'#17333c',padding:{x:10,y:5},wordWrap:{width:620}}).setOrigin(.5,0).setDepth(8)
         if(this.sceneData.resumeSnapshot?.state?.gameOver)this.events.once('postupdate',()=>this.showGameOver())
 
@@ -150,15 +158,18 @@ export class MainScene extends Scene {
 
 
     update = (time, delta) => {
-        processOnlineSession(this)
         this.onlineTurnStatus?.setText(getOnlinePresenceText(this))
         this.terrainLabel?.setText(terrainProfile(this.terrain.layoutKind).name.toUpperCase())
         this.HUD.refresh()
-        saveOnlineMatch(this)
-        this.checkSwitchTurn()
 
         this.input.mousePointer.prev = {x: this.input.mousePointer.x, y: this.input.mousePointer.y}
         this.input.activePointer.prev = {x: this.input.activePointer.x, y: this.input.activePointer.y}
+    }
+
+    finishFrame = () => {
+        processOnlineSession(this)
+        saveOnlineMatch(this)
+        this.checkSwitchTurn()
     }
 
 
@@ -273,16 +284,20 @@ export class MainScene extends Scene {
 
         adBtnContainer.setDepth(100)
 
-        const autoAdjust = () => {
-            var tank = null;
-            if (this.activeTank === 1) tank = this.tank1
-            if (this.activeTank === 2) tank = this.tank2
-            if (tank !== null) {
-                tank.autoAdjust()
+        const autoAdjust = async () => {
+            const tank = this.activeTank === 1 ? this.tank1 : this.activeTank === 2 ? this.tank2 : null
+            try {
+                const result = await tank?.autoAdjust()
+                if (!this.scene.isActive()) return
+                const labels = {self:'SELF USE', automatic:'AUTO TARGET', best:'BEST AVAILABLE', blocked:'NO CLEAR SHOT'}
+                adBtnText.setText(labels[result?.status] || 'ASSIST AIM')
+                if (labels[result?.status]) this.time.delayedCall(1800, () => adBtnText.setText('ASSIST AIM'))
+            } catch (error) {
+                console.error('Aim assist failed', error)
+                adBtnText.setText('TRY AGAIN')
+            } finally {
+                if (this.scene.isActive()) adBtnBackground.setInteractive()
             }
-            adBtnText.setText("ASSIST AIM")
-            adBtnBackground.setInteractive()
-            //adBtnContainer.setInteractive()
         }
 
         const clickHandler = () => {
@@ -294,17 +309,17 @@ export class MainScene extends Scene {
             //adImg.disableInteractive()
             adBtnBackground.disableInteractive()
             //adBtnContainer.disableInteractive()
-            adBtnText.setText("Loading")
+            adBtnText.setText("AIMING…")
             
             if (window.sdk === 'gdsdk') {
                 var gdsdk = window.gdsdk
-                if (typeof gdsdk !== undefined && gdsdk.showAd !== undefined) {
+                if (typeof gdsdk !== 'undefined' && gdsdk.showAd !== undefined) {
                     gdsdk.showAd("rewarded")
-                    autoAdjust()
                 }
+                autoAdjust()
             }
 
-            if (window.sdk === 'crazygames') {
+            else if (window.sdk === 'crazygames') {
                 const callbacks = {
                     adFinished: () => {this.game.sound.mute = false; autoAdjust()},
                     adError: () => {this.game.sound.mute = false; autoAdjust()},
@@ -511,7 +526,7 @@ export class MainScene extends Scene {
             }
             if (window.sdk === 'gdsdk') {
                 var gdsdk = window.gdsdk
-                if (typeof gdsdk !== undefined && gdsdk.showAd !== undefined) {
+                if (typeof gdsdk !== 'undefined' && gdsdk.showAd !== undefined) {
                     gdsdk.showAd()
                     restartGame()
                 }
@@ -541,7 +556,7 @@ export class MainScene extends Scene {
             }
             if (window.sdk === 'gdsdk') {
                 var gdsdk = window.gdsdk
-                if (typeof gdsdk !== undefined && gdsdk.showAd !== undefined) {
+                if (typeof gdsdk !== 'undefined' && gdsdk.showAd !== undefined) {
                     gdsdk.showAd()
                     endGame()
                 }
@@ -618,7 +633,7 @@ export class MainScene extends Scene {
             }
             if (window.sdk === 'gdsdk') {
                 var gdsdk = window.gdsdk
-                if (typeof gdsdk !== undefined && gdsdk.showAd !== undefined) {
+                if (typeof gdsdk !== 'undefined' && gdsdk.showAd !== undefined) {
                     gdsdk.showAd()
                     exitGame()
                 }

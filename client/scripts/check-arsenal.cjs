@@ -34,6 +34,7 @@ const mime = {'.js':'text/javascript','.css':'text/css','.html':'text/html','.pn
                 window.game.scene.start('main-scene',{gameType:4,player1:{name:'TEST A',color:0x6eaa99,weapons:loadout.map(w=>({...w}))},player2:{name:'TEST B',color:0xc59a76,weapons:loadout.map(w=>({...w}))}});
             },id);
             await page.waitForTimeout(150);
+            await page.evaluate(id=>{const s=window.game.scene.getScene('main-scene');for(const tank of [s.tank1,s.tank2])tank.selectedWeapon=tank.weapons.findIndex(w=>w.id===id);s.HUD.reset();},id);
         };
         await startMatch(30);
         const catalog = await page.evaluate(()=>window.game.scene.getScene('main-scene').arsenal.catalog.map(w=>({id:w.id,name:w.name,behavior:w.behavior,hasRuntime:!!w.createInstance})));

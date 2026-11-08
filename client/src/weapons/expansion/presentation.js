@@ -15,3 +15,6 @@ export const fitWeaponName = (text, availableWidth, maxSize = 18, minSize = 11) 
     if (text.width > availableWidth) text.setWordWrapWidth?.(availableWidth, true);
     return text;
 };
+
+const weaponNameOrder = new Intl.Collator('en', {sensitivity: 'base', numeric: true});
+export const alphabeticalWeapons = weapons => [...weapons].sort((a, b) => weaponNameOrder.compare(a.name, b.name));

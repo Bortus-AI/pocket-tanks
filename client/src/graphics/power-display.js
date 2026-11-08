@@ -127,7 +127,6 @@ export const createPowerDisplay = (hud) => {
                 color = `rgba(230,${g},${b},1)`
             }
             //console.log(color)
-            drawPowerMeter(ctx, canvas.width, canvas.height, hud.scene.tank1.power, color)
         }
         else if (hud.scene.activeTank === 2) {
             if (powerBtn.getData('active') === true) {
@@ -137,7 +136,13 @@ export const createPowerDisplay = (hud) => {
                 var b = Math.max(Math.floor((Date.now() - powerSelectTimer)/4)%200 - 100, -(Math.floor((Date.now() - powerSelectTimer)/4)%200) + 100)
                 color = `rgba(230,${g},${b},1)`
             }
-            drawPowerMeter(ctx, canvas.width, canvas.height, hud.scene.tank2.power, color)
+        }
+        const tank = hud.scene.activeTank === 1 ? hud.scene.tank1 : hud.scene.activeTank === 2 ? hud.scene.tank2 : null
+        const paintKey = tank ? `${tank.power}:${color}` : null
+        if (tank && paintKey !== powerMeter.paintKey) {
+            drawPowerMeter(ctx, canvas.width, canvas.height, tank.power, color)
+            powerMeter.texture.refresh()
+            powerMeter.paintKey = paintKey
         }
     }
 }

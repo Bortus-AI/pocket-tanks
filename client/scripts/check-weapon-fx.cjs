@@ -40,11 +40,12 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     [s.tank1,s.tank2].forEach((t,i)=>{t.setPosition(i?900:280,364);t.body.updateFromGameObject();t.body.stop();t.body.setGravity(0);t.setRotation(0);t.settled=true;t.active=i===0;t.centre={x:t.x,y:t.y-6};t.power=45;t.turret.setPosition(t.x,t.y-12);t.turret.setRotation(Math.PI/3);});s.activeTank=1;s.HUD.reset();
    });
   };
-  const emit=async scenario=>page.evaluate(scenario=>{
+  const emit=async scenario=>page.evaluate(async scenario=>{
    const s=window.game.scene.getScene('main-scene');
    const spec={kinetic:['shell','kinetic'],fire:['shell','fire'],frost:['shell','frost'],ion:['rail','ion'],acid:['acidpool','acid'],shield:['shield','foam'],barrage:['barrage','volatile']}[scenario];
    const entry=s.arsenal.catalog.find(w=>w.id>=30&&w.id<400&&w.behavior===spec[0]&&w.payload.key===spec[1]);
    if(!entry)throw Error(`No fixture weapon for ${scenario}`);
+   await s.weaponFX.prepareWeapon(entry.id);
    const runtime=entry.createInstance(),weapon={scene:s,tank:s.tank1,turret:s.tank1.turret,terrain:s.terrain};weapon.weaponHandler=runtime;runtime.create(weapon);
    if(['kinetic','fire','frost'].includes(scenario)){runtime.burst(610,363,72,1);runtime.finish();}
    else if(scenario==='ion'){runtime.beam({x:350,y:225},Math.atan2(360-225,790-350),true);runtime.finish();}
@@ -55,6 +56,9 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     const tick=()=>{runtime.update();if(runtime.done)s.events.off('update',tick);};s.events.on('update',tick);s.events.once('shutdown',()=>s.events.off('update',tick));
    }
    window.testFXRuntime=runtime;
+   // Freeze simulation before screenshot I/O can consume the short effect.
+   // Advance the production runtime and compositor by exact frame durations.
+   s.scene.pause();window.fxCaptureElapsed=0;
   },scenario);
   await page.evaluate(()=>{window.game.registry.set('terrainKind','random');window.game.scene.start('scene-2');});
   await page.waitForTimeout(100);
@@ -84,9 +88,17 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const frames=[],samples=[];
   for(const scenario of ['kinetic','fire','frost','ion','acid','shield','barrage']){
    await fixture();await emit(scenario);
-   let elapsed=0;
    for(const ms of [100,300,800]){
-    await page.waitForTimeout(ms-elapsed);elapsed=ms;
+    await page.evaluate(ms=>{
+     const s=window.game.scene.getScene('main-scene');
+     while(window.fxCaptureElapsed<ms){
+      const dt=Math.min(1000/60,ms-window.fxCaptureElapsed);
+      if(!window.testFXRuntime.done)window.testFXRuntime.update();
+      s.weaponFX.update(dt);s.battleFX?.onUpdate(0,dt);window.fxCaptureElapsed+=dt;
+     }
+     s.terrain.flushTexture();
+    },ms);
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     const file=path.join(artifacts,`${scenario}-${ms}.png`);await page.screenshot({path:file,clip:{x:scenario==='shield'?40:300,y:145,width:700,height:385}});
     frames.push({scenario,ms,file});
     const sample=await page.evaluate(()=>{
@@ -95,13 +107,14 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
      return {...fx.stats(),canvas:fx.canvas?{width:fx.canvas.width,height:fx.canvas.height}:null};
     });samples.push({scenario,ms,...sample});
    }
+   await page.evaluate(()=>window.game.scene.getScene('main-scene').scene.resume());
   }
   // Stress real effect emission. Calling a presentation method does not carve
   // terrain or modify damage, so the compositor budget can be isolated here.
   await fixture();await emit('fire');
   const stress=await page.evaluate(()=>{
    const s=window.game.scene.getScene('main-scene'),r=window.testFXRuntime;
-   const fx=s.weaponFX;fx.reset();
+   s.scene.resume();const fx=s.weaponFX;fx.reset();
    for(let i=0;i<200;i++){
     const entry=s.arsenal.catalog[30+i];
     fx.impact(80+(i%12)*85,120+(i%5)*45,55,{weaponId:entry.id,weaponName:entry.name,payload:entry.payload.key,
@@ -111,7 +124,8 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   });
   if(stress.particleLimit!==undefined)assert.ok(stress.particleCount<=stress.particleLimit,'particle budget exceeded');
   if(stress.beamLimit!==undefined)assert.ok(stress.beamCount<=stress.beamLimit,'beam budget exceeded');
-  assert.ok(stress.storyCount>0&&stress.storyCount<=stress.storyLimit,'authored animation stress must exercise and respect the storyboard budget');
+  assert.ok(stress.materialArt,'production material textures were not loaded');
+  assert.ok(stress.storyCount>0&&stress.storyCount<=stress.storyLimit,'material emission sequences must respect their budget');
   const drawSamples=[];
   for(let i=0;i<24;i++){await page.waitForTimeout(20);drawSamples.push(await page.evaluate(()=>window.game.scene.getScene('main-scene').weaponFX.stats().drawMs));}
   await page.waitForTimeout(5000);

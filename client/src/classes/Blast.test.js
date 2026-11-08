@@ -8,7 +8,11 @@ jest.mock('../graphics/weapon-fx', () => ({ emitWeaponImpact:jest.fn(()=>true) }
 jest.mock('../graphics/impact', () => ({ addImpact:jest.fn() }));
 jest.mock('../weapons/expansion/unique-mechanics',()=>({applyLegacyAftermath:jest.fn(),legacyMechanicalRules:()=>[]}));
 
-const context=()=>({beginPath:jest.fn(),arc:jest.fn(),closePath:jest.fn(),fill:jest.fn()});
+const context=()=>{
+    const state={globalCompositeOperation:'source-over',globalAlpha:.4,beginPath:jest.fn(),arc:jest.fn(),closePath:jest.fn(),fill:jest.fn()},stack=[];
+    state.save=jest.fn(()=>stack.push({globalCompositeOperation:state.globalCompositeOperation,globalAlpha:state.globalAlpha}));
+    state.restore=jest.fn(()=>Object.assign(state,stack.pop()));return state;
+};
 const fixture=()=>{
     const terrainContext=context();
     const image={setOrigin:jest.fn().mockReturnThis(),setVisible:jest.fn().mockReturnThis(),destroy:jest.fn()};
@@ -25,7 +29,8 @@ test('legacy impacts choose elemental families and hide only the old ring presen
     expect(image.setVisible).toHaveBeenCalledWith(false);
     blast.update();
     expect(terrainContext.arc).toHaveBeenCalledWith(100,120,1,0,Math.PI*2);
-    expect(terrainContext.globalCompositeOperation).toBe('destination-out');
+    expect(terrainContext.globalCompositeOperation).toBe('source-over');
+    expect(terrainContext.globalAlpha).toBe(.4);
     expect(blast.innerRadius).toBe(0);
 });
 test.each([[1,16],[2,22],[3,24]])('modern type%i preserves the original crater and settling lifetime', (type,ticks)=>{

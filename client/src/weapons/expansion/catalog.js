@@ -54,10 +54,19 @@ export const families = [
  ['Mystery Box','roulette','Wildcard',45,.8,1,'A deterministic fuse opens as a jackpot, a dud, or a return-to-sender explosion.','The outcome is unknown until impact.'],
 ];
 
+const supportPayloads = {
+    frost:['Freezes other tanks in the support field and extinguishes fire.','The firing tank is excluded from this freeze.'],
+    acid:['Corrodes other nearby tanks for two shots; later hits deal 35% more damage.','The firing tank is excluded from this corrosion.'],
+    ion:['Preserves your shield while discharging other tanks and arcing to other marked armor.','Small blast area; the firing tank is excluded from the support discharge.'],
+    magnet:['Marks other nearby armor for two shots, attracting guided ordnance and ion arcs.','Does not bypass terrain; the firing tank is excluded from this mark.'],
+};
+const supportText = (family,payload,index) => ['shield','repair','cleanse'].includes(family[1])&&supportPayloads[payload.key]
+    ? supportPayloads[payload.key][index] : index===0?payload.detail:payload.risk;
+
 export const expansionCatalog = families.flatMap((f, familyIndex) => payloads.map((payload, payloadIndex) => ({
     id:30 + familyIndex * payloads.length + payloadIndex,
     name:`${payload.name} ${f[0]}`, behavior:f[1], category:f[2], radius:f[3], strength:f[4], count:f[5],
-    description:`${f[6]} ${payload.detail}`, warning:`${f[7]} ${payload.risk}`,
+    description:`${f[6]} ${supportText(f,payload,0)}`, warning:`${f[7]} ${supportText(f,payload,1)}${f[1]==='cleanse'&&payload.key==='fire'?' Existing hazards are cleared first, then fresh flames remain; move away before the next shot.':''}`,
     type:['shield','repair','cleanse','kamikaze'].includes(f[1]) ? 2 : 0,
     payload,
 })));

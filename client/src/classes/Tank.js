@@ -1,7 +1,9 @@
+import { assistTank } from '../aim/assist';
 import { acceptOnlineShot } from '../socket/session';
 import { chooseTankSpawn } from '../graphics/terrain-layouts';
 import { beginTacticalShot, tankState } from '../weapons/expansion/tactics';
 import { drawVehicle } from '../graphics/vehicle';
+import { TankPresentation } from '../graphics/tank-presentation';
 import { GameObjects, Physics } from "phaser";
 import Phaser from "phaser";
 import { Turret } from "./Turret";
@@ -89,6 +91,7 @@ export class Tank extends GameObjects.Sprite {
 
         this.body.setSize(1,1)
         this.turret = new Turret(this.scene, this, this.id)
+        this.presentation = new TankPresentation(this)
 
         // Socket handlers must leave with the sprite when a saved match is parked.
         const onOnlineEvent = (event, handler) => {
@@ -466,59 +469,6 @@ export class Tank extends GameObjects.Sprite {
 
 
 
-    autoAdjust = () => {
-        if (this.gameType === 3) return
-        var oppTank = (this === this.scene.tank1) ? this.scene.tank2 : this.scene.tank1
-        var diffX = this.body.x - oppTank.body.x
-        var diffY = -(this.body.y - oppTank.body.y)
-
-        var angle = Math.atan(diffY/diffX)
-        
-        if (diffX < 0) {
-            var minAngle = angle
-            var maxAngle = Math.PI/2
-        }
-        else {
-            var minAngle = Math.PI/2
-            var maxAngle = angle + Math.PI
-        }
-
-        var accelaration = 300
-        var cos, sin;
-        var newX, newY;
-        var v, dist = 10000, temp;
-        var k = {angle: 0, v: 0}
-        var factor = 4
-
-        for (let theta = minAngle; theta < maxAngle; theta += 0.1 * factor) {
-            for (v = this.turret.powerFactor; v < 100 * this.turret.powerFactor; v += this.turret.powerFactor * factor) {
-                sin = Math.sin(theta)
-                cos = Math.cos(theta)
-                for (let t = 0; t < 5; t += 0.01 * factor) {
-                    newX = this.turret.x + v * cos * t
-                    newY = this.turret.y - v * sin * t + 1/2 * accelaration * t * t
-                    if (newX < 0 || newX > this.terrain.width) {
-                        break
-                    }
-                    if (newY > 0 && newY < this.terrain.height) {
-                        //this.terrain.setPixel(newX, newY, 255,0,0,255)
-                        if (this.terrain.getPixel(newX, newY).alpha > 0 || newY - this.terrain.height > -1) {
-                            temp = Math.sqrt( Math.pow( newX - oppTank.body.x, 2 ) + Math.pow( newY - oppTank.body.y, 2 ) )
-                            if (temp < dist) {
-                                dist = temp
-                                k.angle = Math.PI/2 - theta
-                                k.v = v
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        this.turret.setRotation(k.angle)
-        this.turret.setRelativeRotation(k.angle - this.rotation)
-        this.setPower(k.v / this.turret.powerFactor)
-    }
+    autoAdjust = () => assistTank(this)
 
 }

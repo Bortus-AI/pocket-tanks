@@ -996,7 +996,7 @@ export class tracer {
             angleText.setFont('20px Geneva')
         }
 
-        setTimeout(() => {
+        weapon.scene.time.delayedCall(4000, () => {
             angleText.destroy(true)
             obj.destroy(true)
             weapon.scene.textures.remove(obj.texture.key)
@@ -1004,7 +1004,7 @@ export class tracer {
             if (this.projectiles.length === 0) {
                 weapon.turret.activeWeapon = null
             }
-        }, 4000);
+        });
     }
 }
 
@@ -1280,13 +1280,13 @@ export class dirtmover {
             ease: 'Linear',
         });
         
-        setTimeout(() => {
+        weapon.scene.time.delayedCall(800, () => {
             this.projectile.destroy(true);
             weapon.scene.textures.remove('projectile')
             weapon.turret.activeWeapon = null;
             weapon.terrain.allowSave = true
             weapon.terrain.fixTerrainShape(this.endPoints)
-        }, 800);
+        });
     }
 
     update = (weapon) => {
@@ -1308,7 +1308,9 @@ export class dirtmover {
         var w2 = smallW * (1 - k2) + bigW * k2
 
         var ctx = weapon.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
     
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -1320,6 +1322,7 @@ export class dirtmover {
 
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
 
         weapon.terrain.update()
     }
@@ -1564,6 +1567,9 @@ export class spider {
         this.dissipated = false
         this.particleCount = 0
         this.frameCount = 0
+        this.flightFrames = 0
+        this.clearedLaunchZone = false
+        this.previousShooterDistance = Infinity
         this.minAngle = 0
         this.maxAngle = 0
         this.initX = 0
@@ -1576,6 +1582,9 @@ export class spider {
         this.dissipated = false
         this.particleCount = 0
         this.frameCount = 0
+        this.flightFrames = 0
+        this.clearedLaunchZone = false
+        this.previousShooterDistance = Infinity
         this.minAngle = 0
         this.maxAngle = 0
         this.initX = 0
@@ -1615,6 +1624,7 @@ export class spider {
 
     update = (weapon) => {
         if (this.dissipated === false) {
+            this.flightFrames++
             weapon.updateTail(this.projectile, 18, 4, 5, {r: 200, g: 200, b: 200}, false)
             //if (this.dissipated === false)
             weapon.defaultUpdate(this.projectile)
@@ -1656,26 +1666,31 @@ export class spider {
 
     checkCloseToTank = (weapon) => {
         if (this.projectile.body === undefined) return
-        var oppTank = weapon.tank === weapon.scene.tank1 ? weapon.scene.tank2 : weapon.scene.tank1
+        const {x, y} = this.projectile.body
+        const ownDistance = Math.hypot(weapon.tank.centre.x - x, weapon.tank.centre.y - y)
+        const opponent = weapon.tank === weapon.scene.tank1 ? weapon.scene.tank2 : weapon.scene.tank1
+        const enemyDistance = Math.hypot(opponent.centre.x - x, opponent.centre.y - y)
+        if (ownDistance > 180) this.clearedLaunchZone = true
+        const returning = this.flightFrames > 12 && this.projectile.body.velocity.y > 0
+            && ownDistance < this.previousShooterDistance
+        this.previousShooterDistance = ownDistance
+        if (enemyDistance >= 160 && !(ownDistance < 160 && (this.clearedLaunchZone || returning))) return
+        const closest = [weapon.scene.tank1, weapon.scene.tank2].slice().sort((a, b) =>
+            Math.hypot(a.centre.x - x, a.centre.y - y) - Math.hypot(b.centre.x - x, b.centre.y - y))[0]
+        if (Math.hypot(closest.centre.x - x, closest.centre.y - y) >= 160) return
 
-        if (Phaser.Math.Distance.Between(oppTank.centre.x, oppTank.centre.y, this.projectile.body.x, this.projectile.body.y) < 160) {
-            var vx = this.projectile.body.velocity.x
-            var angle = Phaser.Math.Angle.Wrap(Phaser.Math.Angle.Between(oppTank.centre.x, oppTank.centre.y, this.projectile.body.x, this.projectile.body.y) + Math.PI);
-
-            if ((vx > 0 && angle <= Math.PI/2 && angle >= 0) || (vx <= 0 && angle >= Math.PI/2 && angle <= Math.PI)) {
-                weapon.scene.sound.play('split', {volume: 0.3})
-                weapon.fixCloseToTank(this.projectile, {oppTankDist: 160})
-
-                this.minAngle = (vx > 0 ? 0 : Math.PI/2)
-                this.maxAngle = (vx > 0 ? Math.PI/2 : Math.PI)
-                this.initX = this.projectile.body.x
-                this.initY = this.projectile.body.y
-                this.dissipated = true
-                this.projectile.destroy(true)
-                weapon.scene.textures.remove(this.projectile.texture.key)
-            }
-        }
+        weapon.scene.sound.play('split', {volume: 0.3})
+        const direction = Math.atan2(closest.centre.y - y, closest.centre.x - x)
+        this.minAngle = direction - Math.PI/4
+        this.maxAngle = direction + Math.PI/4
+        this.initX = x
+        this.initY = y
+        this.dissipated = true
+        const textureKey = this.projectile.texture.key
+        this.projectile.destroy(true)
+        weapon.scene.textures.remove(textureKey)
     }
+
 
     createParticle = (weapon, delta, x, y) => {
         this.particleCount++
@@ -2132,15 +2147,19 @@ export class magicwall {
         var g = ctx.createLinearGradient(obj.x, obj.y - h, obj.x, obj.y)
         g.addColorStop(0, 'rgba(120,190,0,1)')
         g.addColorStop(1, 'rgba(120,50,20,1)')
-        ctx.globalCompositeOperation = 'destination-over'
-        ctx.fillStyle = g
         
         weapon.scene.tweens.add({
             targets: shape,
             h: h,
             duration: 3000,
             onUpdate: () => {
-                ctx.fillRect(obj.x - w/2, obj.y - shape.h, w, shape.h) 
+                ctx.save()
+                ctx.globalCompositeOperation = 'destination-over'
+                ctx.globalAlpha = 1
+                ctx.fillStyle = g
+                ctx.fillRect(obj.x - w/2, obj.y - shape.h, w, shape.h)
+                ctx.restore()
+                weapon.terrain.refresh()
                 emitter.setPosition(obj.x, obj.y - shape.h)
                 emitter.emit()
             },
@@ -2297,9 +2316,6 @@ export class dirtslinger {
         var g = ctx.createLinearGradient(obj.x, obj.y - h, obj.x, obj.y)
         g.addColorStop(0, 'rgba(230,190,130,0.9)')
         g.addColorStop(1, 'rgba(120,50,20,0.5)')
-        ctx.globalCompositeOperation = 'destination-over'
-        ctx.fillStyle = g
-        ctx.globalAlpha = 1
         
         this.tween = new Tween({
             targets: [shape],
@@ -2315,7 +2331,13 @@ export class dirtslinger {
                 var y2 = y - vec2.length() * Math.sin(vec2.angle())
 
                 if (y1 > 0 && y2 > 0) {
+                    ctx.save()
+                    ctx.globalCompositeOperation = 'destination-over'
+                    ctx.globalAlpha = 1
+                    ctx.fillStyle = g
                     ctx.fillRect(x2, y2, x1 - x2, shape.h - prevH)
+                    ctx.restore()
+                    weapon.terrain.refresh()
                     prevH = shape.h
                 }
             },
@@ -2329,12 +2351,17 @@ export class dirtslinger {
                 var x2 = x + vec2.length() * Math.cos(vec2.angle())
                 var y2 = y - vec2.length() * Math.sin(vec2.angle())
 
+                ctx.save()
+                ctx.globalCompositeOperation = 'destination-over'
+                ctx.globalAlpha = 1
+                ctx.fillStyle = g
                 ctx.beginPath()
                 ctx.moveTo(x, y)
                 ctx.lineTo(x1, y1)
                 ctx.lineTo(x2, y2)
                 ctx.closePath()
                 ctx.fill()
+                ctx.restore()
 
                 weapon.terrain.update()
 
@@ -2673,7 +2700,7 @@ export class napalm {
         else {
             if (obj.smokeEmitter !== null) {
                 obj.smokeEmitter.tween.remove()
-                obj.smokeEmitter.remove()
+                obj.smokeEmitter.destroy()
             }
             this.particles = this.particles.filter(p => { return p === obj })
             obj.destroy(true)
@@ -2713,18 +2740,18 @@ export class napalm {
                     var k = Math.ceil((weapon.tank.hitRadius*2 - temp) * 0.5 / weapon.tank.hitRadius*2)
                     points1 += (temp < weapon.tank.hitRadius*2) ? Math.min(k, 5) : 0
                 })
-                setTimeout(() => {
+                weapon.scene.time.delayedCall(600*Math.random(), () => {
                     weapon.constantUpdateScore(Math.floor(-points1)) 
-                }, 600*Math.random());
+                });
 
                 this.particles.forEach(ele => {
                     temp = Phaser.Math.Distance.BetweenPoints(ele, oppTank)
                     var k = Math.ceil((weapon.tank.hitRadius*2 - temp) * 0.5 / weapon.tank.hitRadius*2)
                     points2 += (temp < weapon.tank.hitRadius*2) ? Math.min(k, 5) : 0
                 })
-                setTimeout(() => {
+                weapon.scene.time.delayedCall(600*Math.random(), () => {
                     weapon.constantUpdateScore(Math.floor(points2)) 
-                }, 600*Math.random());
+                });
             },
         })
     }
@@ -2766,7 +2793,7 @@ export class napalm {
                 if (p.body !== undefined) {
                     if (p.smokeEmitter !== null) {
                         p.smokeEmitter.tween.remove()
-                        p.smokeEmitter.remove()
+                        p.smokeEmitter.destroy()
                     }
                     p.destroy(true)
                     this.particles = this.particles.filter(particle => { return particle === p })
@@ -2778,9 +2805,9 @@ export class napalm {
 
         this.removeTweens.push(remTween)
 
-        setTimeout(() => {
+        weapon.scene.time.delayedCall(Math.random() * 500, () => {
             this.addSmoke(weapon, p, canvas, ctx)
-        }, Math.random() * 500);
+        });
     }
 
     addSmoke = (weapon, p, canvas, ctx) => {
@@ -2798,10 +2825,8 @@ export class napalm {
         ctx.closePath()
         ctx.fill()
 
-        var smokeTexture = weapon.scene.textures.addCanvas('smoke', canvas, true)
-        var smokeEmitter = weapon.scene.add.particles(smokeTexture).createEmitter({
-            x: p.body.x,
-            y: p.body.y,
+        if (!weapon.scene.textures.exists('legacy-smoke')) weapon.scene.textures.addCanvas('legacy-smoke', canvas)
+        var smokeEmitter = weapon.scene.add.particles(p.body.x, p.body.y, 'legacy-smoke', {
             speed: 20,
             angle: { min: 180, max: 360 },
             scale: { start: 1, end: 3},
@@ -2820,10 +2845,10 @@ export class napalm {
             onLoop: () => {
                 if (p.body.speed === 0) {
                     var beta = Phaser.Math.RadToDeg(weapon.terrain.getSlope(p.body.x, p.body.y))
-                    smokeEmitter.setAngle({min: beta, max: beta - 180})
+                    smokeEmitter.setEmitterAngle({min: beta, max: beta - 180})
                 }
                 else {
-                    smokeEmitter.setAngle({min: (360 - p.body.velocity.angle()) - 90, max: (360 - p.body.velocity.angle()) + 90})
+                    smokeEmitter.setEmitterAngle({min: (360 - p.body.velocity.angle()) - 90, max: (360 - p.body.velocity.angle()) + 90})
                 }
                 smokeEmitter.setPosition(p.body.x, p.body.y)
             }
@@ -3011,9 +3036,9 @@ export class hailstorm {
     dissociate = (weapon, prevX, prevY) => {
         weapon.scene.sound.play('aquabomb_splash')
 
-        setTimeout(() => {
+        weapon.scene.time.delayedCall(2000, () => {
             weapon.scene.sound.play('hailstorm', {volume: 2})
-        }, 2000);
+        });
 
         this.originalSlope = weapon.terrain.getSlope(prevX, prevY)
 
@@ -3082,18 +3107,18 @@ export class hailstorm {
                         points1 += 0.5
                     }
                 })
-                setTimeout(() => {
+                weapon.scene.time.delayedCall(600*Math.random(), () => {
                     weapon.constantUpdateScore(Math.floor(-points1)) 
-                }, 600*Math.random());
+                });
     
                 this.ballsArray.forEach(ele => {
                     if (oppTank.isPointInside(ele.body.x, ele.body.y)) {
                         points2 += 0.5
                     }
                 })
-                setTimeout(() => {
+                weapon.scene.time.delayedCall(600*Math.random(), () => {
                     weapon.constantUpdateScore(Math.ceil(points2)) 
-                }, 600*Math.random()); 
+                });
             }
         })
     }
@@ -3799,7 +3824,7 @@ export class chainreaction {
         if (weapon.scene.textures.exists('chainparticle')) weapon.scene.textures.remove('chainparticle')
         weapon.scene.textures.addCanvas('chainparticle', canvas);
 
-        this.emitter1 = weapon.scene.add.particles('chainparticle').createEmitter({
+        this.emitter1 = weapon.scene.add.particles(0, 0, 'chainparticle', {
             alpha: { start: 0.4, end: 0.1},
             speed: 5,
             scale: 0.8,
@@ -3808,8 +3833,9 @@ export class chainreaction {
 
         this.emitter1.reserve(100)
         this.emitter1.startFollow(this.projectile)
+        this.emitter1.once('complete', function () { this.destroy() })
 
-        this.emitter2 = weapon.scene.add.particles('chainparticle').createEmitter({
+        this.emitter2 = weapon.scene.add.particles(0, 0, 'chainparticle', {
             alpha: { start: 1, end: 0 },
             scale: { start: 1, end: 2.5 },
             lifespan: 250,
@@ -3817,6 +3843,7 @@ export class chainreaction {
 
         this.emitter2.reserve(5).setFrequency(100)
         this.emitter2.startFollow(this.projectile)
+        this.emitter2.once('complete', function () { this.destroy() })
     }
 
     shoot = (weapon) => {
@@ -4571,7 +4598,6 @@ export class dirtball {
         const projY = Math.floor(this.projectile.body.y)
 
         var ctx = weapon.terrain.getContext()
-        ctx.globalCompositeOperation = "destination-over"
 
         var soundEffects = ['rocks_1', 'rocks_2', 'rocks_3', 'rocks_4', 'rocks_5', 'rocks_6']
         var soundEffectIndex = 0
@@ -4581,6 +4607,9 @@ export class dirtball {
             frames: 90,
             props: [{key: 'currentLength', value: this.r}],
             onUpdate: () => {
+                ctx.save()
+                ctx.globalCompositeOperation = 'destination-over'
+                ctx.globalAlpha = 1
                 vec.setLength(dist.currentLength)
                 for (let angle = 0; angle < 2*Math.PI; angle = angle + 0.03) {
                     vec.setAngle(angle);
@@ -4614,6 +4643,8 @@ export class dirtball {
                         }
                     }
                 }
+                ctx.restore()
+                weapon.terrain.refresh()
                 for (let i = 0; i < soundEffects.length; i++) {
                     const e = soundEffects[i];
                     var res = weapon.scene.sound.get(e)
@@ -4705,13 +4736,13 @@ export class dirtball {
             },
         })
 
-        var myInterval = setInterval(() => {
+        var myInterval = weapon.scene.time.addEvent({delay: 500, callback: () => {
             if (Object.keys(points).length === 0) {
                 this.fixTerrainTween.destroy()
                 weapon.turret.activeWeapon = null
-                clearInterval(myInterval)
+                myInterval.remove(false)
             }
-        }, 500);
+        }, loop: true});
     }
 }
 
@@ -4777,7 +4808,7 @@ export class tommygun {
         const aOffset = [0, -3, 4, 6, -1, 0, 2, 5, -3.5, 4.5, -1.5, 2]
         var i = 0;
 
-        var myInterval = setInterval(() => {
+        var myInterval = weapon.scene.time.addEvent({delay: 100, callback: () => {
             var projectile = weapon.scene.physics.add.sprite(0, 0, 'projectile-' + i)
             projectile.setDepth(3)
             projectile.bounceCount = 3
@@ -4789,9 +4820,9 @@ export class tommygun {
             i++
             if (i === this.particleCount) {
                 this.allShot = true
-                clearInterval(myInterval)
+                myInterval.remove(false)
             }
-        }, 100);
+        }, loop: true});
     }
 
     update = (weapon) => {
@@ -5339,6 +5370,13 @@ export class cruiser {
     }
 
     roll = (weapon) => {
+        const {x:contactX, y:contactY} = this.projectile.body
+        const adhesive = [weapon.terrain.getPixel(contactX, contactY), weapon.terrain.getPixel(contactX, contactY + 1)]
+            .some(pixel => pixel.red === 135 && pixel.green === 155 && pixel.blue === 82)
+        if (adhesive) {
+            this.projectile.body.stop()
+            return
+        }
         var next, base, delta
 
         if (this.rollingRight && weapon.terrain.getRightGround(this.projectile.body.x, this.projectile.body.y) == null) {

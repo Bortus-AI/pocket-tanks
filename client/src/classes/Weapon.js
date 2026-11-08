@@ -13,7 +13,7 @@ export class Weapon {
     * @param {Phaser.Scene} scene
     */
 
-    constructor (scene, tank, id) {    
+    constructor (scene, tank, id, previewHandler = null) {
         if (id === null || id === undefined) id = 0
 
         this.scene = scene
@@ -24,7 +24,7 @@ export class Weapon {
         this.powerFactor = this.turret.powerFactor
         this.terrain = this.scene.terrain
         const entry = weaponArray[this.id] || weaponArray[0]
-        this.weaponHandler = entry.createInstance ? entry.createInstance() : entry
+        this.weaponHandler = previewHandler || (entry.createInstance ? entry.createInstance() : entry)
         this.allowUpdate = false
         this.legacyVisuals = new Map()
         this.scene.events.once('shutdown', () => {
@@ -33,6 +33,9 @@ export class Weapon {
         })
         
         this.create()
+
+        // Isolated aim previews advance their own clock and physics.
+        if (previewHandler) return
 
         this.scene.time.delayedCall(500, () => {
             this.shoot()
@@ -49,6 +52,7 @@ export class Weapon {
 
 
     shoot = () => {
+        this.tank.presentation?.fire()
         this.weaponHandler.shoot(this)
         this.update()
     }
@@ -274,6 +278,7 @@ export class Weapon {
 
             var ctx = this.terrain.getContext()
 
+            ctx.save()
             ctx.globalCompositeOperation = 'source-atop'
             ctx.lineJoin = 'round'
             ctx.strokeStyle = `rgba(0,0,0,${intensity})`
@@ -285,6 +290,11 @@ export class Weapon {
             ctx.moveTo(obj.prevState.x, obj.prevState.y)
             ctx.lineTo(obj.body.x, obj.body.y)
             ctx.stroke()
+            ctx.restore()
+
+            // Digging only paints a track. Queue the terrain texture upload
+            // without rebuilding collision data; refresh batches it per frame.
+            this.terrain.refresh()
 
             obj.prevState.x = obj.body.x
             obj.prevState.y = obj.body.y

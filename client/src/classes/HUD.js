@@ -25,10 +25,11 @@ export class HUD extends Textures.CanvasTexture {
         canvas.height = height
         canvas.width = width
         if (scene.textures.exists('hud')) scene.textures.remove('hud')
-        scene.textures.addCanvas('hud', canvas);
-        scene.add.image(width/2, height/2, 'hud').setDepth(4);
-
         super(scene.textures, 'hud', canvas, canvas.width, canvas.height)
+
+        scene.textures.list.hud = this
+        scene.textures.emit('addtexture', 'hud', this)
+        scene.add.image(width/2, height/2, 'hud').setDepth(4)
 
         this.canvas = canvas
         this.scene = scene
@@ -111,7 +112,9 @@ export class HUD extends Textures.CanvasTexture {
         ]
         this.legacyControls = this.scene.children.list.filter(object => !existingObjects.has(object) && object.y >= this.height * 2/3)
         this.mobileAim = createMobileAimControls(this)
-        this.update()
+        // HUD.refresh is the control-state method below. Upload the painted
+        // console explicitly instead of dispatching through that override.
+        Textures.CanvasTexture.prototype.refresh.call(this)
 
         // this.scene.input.mouse.onMouseDown = () => {
         //     if (this.scene.input.mouse.locked && this.weaponScrollList.visible === true) {

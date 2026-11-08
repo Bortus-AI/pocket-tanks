@@ -90,7 +90,7 @@ test('hazard aftermath persists in exported tactical state and has owner/counter
 });
 test('the three turret names route to three persistent device kinds',()=>{
     const kinds=[];
-    for(const name of ['Auto Turrets','Missile Turret',"Run 'n' Gun"]){const {runtime,scene}=setup(name);contact(runtime);kinds.push(worldState(scene).devices[0].kind);}
+    for(const name of ['Auto Turrets','Missile Turret',"Run 'n' Gun"]){const {runtime,scene}=setup(name);if(name==='Auto Turrets')runtime.shoot();else contact(runtime);kinds.push(worldState(scene).devices[0].kind);}
     expect(new Set(kinds).size).toBe(3);
 });
 test('legacy additions execute once and preserve all original IDs',()=>{

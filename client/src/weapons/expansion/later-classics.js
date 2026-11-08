@@ -247,3 +247,120 @@ const deviceStories={
         warning:'Broken terrain can wreck the drone. Walls interrupt its line of fire; friendly armor can intercept its rounds. A new drone replaces your old one.'},
 };
 [laterClassicAdaptations,modernClassicAdaptations].forEach(pack=>pack.forEach((definition,index)=>{pack[index]=withMechanicalRules({...definition,...deviceStories[definition.name]});}));
+
+// These signatures need their own stateful delivery rather than a generic
+// terrain/escape approximation. The hooks retain the canonical IDs and art.
+const laterEffects = {
+    'Time Bomb': ['time-bomb', 'Bounces and settles with a ten-second countdown before its delayed explosion.'],
+    Bumpers: ['bumpers', 'Builds tall reflective barriers at both edges of the battlefield when its shell lands.'],
+    'Puddle Jumper': ['puddle-jumper', 'A thrown warhead splashes at landing, then hops across the surface with further splashes.'],
+    'Leap Frog': ['leap-frog', 'Your tank hops across the field, firing lasers toward the opponent during each hop.'],
+    Backtrack: ['backtrack', 'The shell attacks its landing point before your tank retreats away from the opponent.'],
+    'Lock Box': ['lock-box', 'Launches a nearby tank and traps it inside a hollow box of reflective terrain.'],
+    'Neutron Beam': ['neutron-beam', 'Automatically aims a penetrating neutron beam at the opposing tank.'],
+    'Fix-it Foam': ['fix-it-foam', 'Fills a nearby depression with reflective foam and lifts your tank onto the filled surface.'],
+    'Crash Dive': ['crash-dive', 'Your tank dives through earth for cover while launching artillery shells toward the opponent.'],
+    Upheaval: ['upheaval', 'Your tank rises out of cover, fires a powerful beam toward the opponent, then lands.'],
+    'Matter Blaster': ['matter-blaster', 'Consumes nearby earth to power an outgoing energy bomb. More earth gives the bomb a larger blast.'],
+    Stomper: ['stomper', 'Your tank tumbles across the field, clearing a destructive path and striking enemy armor until it lands.'],
+    'Rebound Lasers': ['rebound-lasers', 'The landing emitter fires lasers that reflect from terrain and the battlefield boundaries.'],
+};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    const signature = laterEffects[definition.name];
+    if (!signature) return;
+    definition.laterEffect = signature[0];
+    if (definition.laterEffect === 'lock-box') definition.classicMechanic = 'nonexcavate';
+    definition.description = definition.shortDescription = signature[1];
+}));
+
+const completedEarlyDescriptions = {
+    'Great Wall': 'Builds a solid wall from the bottom of the battlefield to the top at the landing point.',
+    'Glue Storm': 'Coats the entire terrain with adhesive, removing reflective rubber and stopping cruising weapons.',
+    Blockade: 'Builds hollow enclosing cover around the tank hit by the shell, leaving room inside the barrier.',
+    Nanobots: 'Releases ten mobile robots that approach the opposing tank and attack with repeated laser pulses.',
+    Whiplash: 'A missed shot turns back for another guided approach to the opposing tank.',
+};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    const description = completedEarlyDescriptions[definition.name];
+    if (description) definition.description = definition.shortDescription = description;
+}));
+
+const auditedEarlyMetadata = {
+    'Stun Gun': {options: {shots: 2}, count: 2, description: 'Two electrical rounds spread apart as they travel.'},
+    Rockslide: {options: {downhill: true, dirt: true}, payload: 'kinetic', description: 'A herd of downhill-moving rocks damages and buries tanks along the surface.'},
+    Snowballs: {options: {downhill: true, bounces: 3}, description: 'Snowballs bounce and roll downhill, freezing tanks caught in their path.'},
+    'Glue Gun': {options: {fire: true}, payload: 'fire', description: 'A proximity round sprays burning adhesive near the opposing tank. The glue stops cruising weapons.'},
+    'Gyro Glue': {options: {fire: true}, payload: 'fire', description: 'An oscillating round spreads burning adhesive over a wide area, stopping cruising weapons.'},
+    'Saucer Attack': {options: {shots: 2}, count: 2, description: 'Calls down two moving saucers that approach the opponent and attack with lasers.'},
+    Funnel: {options: {rubber: true}, description: 'The landing missile forms a steep reflective valley around the nearby tank.'},
+    'Smoke Bomb': {options: {scramble: true}, description: 'Caustic smoke damages nearby armor and scrambles the affected tank’s angle and power.'},
+};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    const update = auditedEarlyMetadata[definition.name];
+    if (!update) return;
+    definition.options = {...definition.options, ...update.options};
+    if (update.count !== undefined) definition.count = update.count;
+    if (update.payload) definition.payload = payloads.find(payload => payload.key === update.payload);
+    definition.description = definition.shortDescription = update.description;
+}));
+
+const completedLaterSignatures = {
+    Breakout: ['breakout', 'Carves an escape tunnel while your tank rockets out through the surrounding earth.'],
+    'Jump Rope': ['jump-rope', 'Unrolls two diverging streams of bouncing bullets before their final explosions.'],
+    Bunker: ['bunker', 'Builds a reflective shelter, then tunnels your tank underground beneath it.'],
+    'Mirror Ball': ['mirror-ball', 'A bouncing carrier attacks nearby armor with lasers before its final radial light show.'],
+    Cavern: ['cavern', 'Cuts a winding underground passage connecting the two tank positions, including changes in elevation.'],
+    'Six Shooter': ['six-shooter', 'Six rapid rounds bank at their first contact and explode on their second.'],
+    'Gravity Grenade': ['gravity-grenade', 'Compresses nearby earth and tanks into a floating sphere of rubble.'],
+    Retreat: ['retreat', 'Carries your tank to the farthest edge away from the opponent.'],
+    'Super Retreat': ['super-retreat', 'Escapes to the far edge, raises reflective cover, and fires a parting attack.'],
+    Dash: ['dash', 'Races along the terrain, clings to steep surfaces, and strikes tanks in its path.'],
+    'Coin Toss': ['coin-toss', 'A seeded coin flip chooses a normal silver blast or a golden blast with triple damage.'],
+    'Bumper Bowling': ['bumper-bowling', 'A rolling cannonball strikes nearby armor for damage determined by its impact speed.'],
+    Foundation: ['foundation', 'Builds a brick foundation across the bottom of the battlefield.'],
+    Firefight: ['firefight', 'A nearby hit provokes an immediate countershot using the opponent’s current aim and power.'],
+};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    const signature = completedLaterSignatures[definition.name];
+    if (signature) {
+        definition.laterEffect = signature[0];
+        definition.description = definition.shortDescription = signature[1];
+    }
+    // Complete signatures supersede their former approximation's unrelated
+    // aftermath. They retain their own canonical ID, assets and effect hook.
+    if (definition.laterEffect) definition.mechanicalRules = [];
+}));
+
+const tetherDescriptions = {
+    'Paddle Ball': 'A weighted bouncing ball attaches to nearby armor and pulls the tank through its tether.',
+    'Bungee Bomb': 'A magnetic tether swings the attached tank and slams it into the ground.',
+    'Danger Rope': 'An electrified lasso catches nearby armor and drags the tank around the battlefield.',
+};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    if (tetherDescriptions[definition.name]) definition.description = definition.shortDescription = tetherDescriptions[definition.name];
+}));
+
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    if (definition.name === 'Funnel') definition.classicMechanic = 'funnel';
+    if (definition.name === 'Blockade') definition.classicMechanic = 'enclosure';
+}));
+
+const tetherKinds = {'Paddle Ball': 'paddle', 'Bungee Bomb': 'bungee', 'Danger Rope': 'rope'};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    if (!tetherKinds[definition.name]) return;
+    definition.tetherEffect = tetherKinds[definition.name];
+    definition.mechanicalRules = [];
+}));
+
+const finalSourceSignatures = {
+    'Bungee Punch': ['bungee-punch', 'A missed punching glove returns toward the firing tank; a close hit explodes at the opponent.'],
+    Bombardment: ['bombardment', 'Calls in cruise missiles from four corners of the sky toward the marked landing area.'],
+    'Auto Turrets': ['auto-turrets', 'Deploys two persistent sentries beside your tank. They attack from their firing lanes at later shot boundaries.'],
+};
+[laterClassicAdaptations, modernClassicAdaptations].forEach(pack => pack.forEach(definition => {
+    const signature = finalSourceSignatures[definition.name];
+    if (!signature) return;
+    definition.laterEffect = signature[0];
+    definition.description = definition.shortDescription = signature[1];
+    definition.mechanicalRules = [];
+}));

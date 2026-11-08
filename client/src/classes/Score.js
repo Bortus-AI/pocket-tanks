@@ -1,3 +1,5 @@
+import { reducedMotion } from '../graphics/motion';
+
 export class Score {
     /**
      * @param {Phaser.Scene} scene 
@@ -15,30 +17,21 @@ export class Score {
         var initY = this.tank.y
 
         this.tank.score = this.tank.score + points
-        var text = this.scene.add.text(initX, initY, points)
-        text.setOrigin(0.5)
-        if (!this.scene.game.device.os.desktop) {
-            text.setFontSize(22)
-        }
-        this.pointsArray.push({value: points, t: 0.0, text: text, initX: initX, initY: initY})
+        const minimal = reducedMotion()
+        const text = this.scene.add.text(initX, initY - 22, points > 0 ? `+${points}` : String(points), {
+            fontFamily:'Arial',fontSize:this.scene.game.device.os.desktop?18:22,fontStyle:'bold',
+            color:points>0?'#fff0c4':'#ffb291',stroke:'#172f37',strokeThickness:3,
+        }).setOrigin(.5).setDepth(7)
+        this.pointsArray.push({text})
+        this.scene.tweens.add({targets:text,y:initY-(minimal?30:80),alpha:0,duration:minimal?900:1300,ease:'Cubic.Out',onComplete:()=>text.destroy()})
+        if(!minimal){text.setScale(.75);this.scene.tweens.add({targets:text,scaleX:1,scaleY:1,duration:200,ease:'Back.Out'})}
     }
 
 
 
     update = () => {
-        this.pointsArray.forEach((point) => {
-            this.animatePoint(point)
-        })
-
-        this.pointsArray = this.pointsArray.filter((point) => {
-            return point.text.y > -20
-        })
+        this.pointsArray = this.pointsArray.filter(point => !!point.text.scene)
     }
 
 
-    animatePoint = (point) => {
-        var factor = 0.06
-        point.text.setPosition(point.initX + 36 * Math.sin(point.t), point.initY - 20 * point.t)
-        point.t += factor
-    }
 }

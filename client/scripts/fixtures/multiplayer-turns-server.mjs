@@ -30,6 +30,12 @@ process.on('message',message=>{
  const room=controller.rooms.get(message.roomId),member=value=>value?{connected:value.connected,suspended:value.suspended,playerId:value.playerId}:null;
  process.send?.({type:'reply',requestId:message.requestId,data:room?{roomId:room.roomId,phase:room.phase,host:member(room.host),player:member(room.player),draft:room.draft,snapshot:room.snapshot,lastTurn:room.lastTurn,matchId:room.matchId,turn:room.turn,pendingShot:room.pendingShot,completedShots:room.completedShots,events}:null});
 });
-const shutdown=()=>{for(const timer of timers)clearTimeout(timer);controller.dispose();io.close(()=>process.exit(0));};
+const shutdown=()=>{
+ for(const timer of timers)clearTimeout(timer);controller.dispose();
+ io.close(()=>process.exit(0));
+ // Match process termination: unfinished atlas downloads and keep-alive HTTP
+ // connections must not hold this disposable server open after browsers close.
+ server.closeAllConnections();
+};
 process.once('SIGTERM',shutdown);process.once('SIGINT',shutdown);
 server.listen(Number(process.env.TURNS_PORT)||0,'127.0.0.1',()=>process.send?.({type:'ready',port:server.address().port}));

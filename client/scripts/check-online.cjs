@@ -71,9 +71,9 @@ const wait=async(predicate,message)=>{const start=Date.now();while(!await predic
   await shoot(guest);
   await host.waitForFunction(()=>{const s=window.game.scene.getScene('main-scene');return s.activeTank===1&&!s.tank2.turret.activeWeapon&&s.tank2.tactics?.shield>0;},{timeout:20000});
   // Material-aware authoritative roundtrip, including a receiver with stale rubber.
-  const mask=await host.evaluate(()=>{const s=window.game.scene.getScene('main-scene');s.terrain.context.fillStyle='rgb(230,0,230)';s.terrain.context.fillRect(400,349,12,7);s.terrain.context.fillStyle='rgb(135,155,82)';s.terrain.context.fillRect(420,349,12,7);s.terrain.update();return s.terrain.exportMask();});
-  const materials=await guest.evaluate(mask=>{const t=window.game.scene.getScene('main-scene').terrain;t.multiplayerCorrection(mask);const read=(x)=>{const p=t.context.getImageData(x,351,1,1).data;return Array.from(p)};return [read(405),read(425)];},mask);
-  assert.deepEqual(materials,[[230,0,230,255],[135,155,82,255]]);
+  const mask=await host.evaluate(()=>{const s=window.game.scene.getScene('main-scene');s.terrain.context.fillStyle='rgb(230,0,230)';s.terrain.context.fillRect(400,349,12,7);s.terrain.context.fillStyle='rgb(135,155,82)';s.terrain.context.fillRect(420,349,12,7);s.terrain.context.fillStyle='#050508';s.terrain.context.fillRect(440,349,12,7);s.terrain.update();return s.terrain.exportMask();});
+  const materials=await guest.evaluate(mask=>{const t=window.game.scene.getScene('main-scene').terrain;t.multiplayerCorrection(mask);const read=(x)=>{const p=t.context.getImageData(x,351,1,1).data;return Array.from(p)};return [read(405),read(425),read(445)];},mask);
+  assert.deepEqual(materials,[[230,0,230,255],[135,155,82,255],[5,5,8,255]]);
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({onlineTurnHandoffs:2,onlineHUD,deployments,shieldSynced:shield,materialRoundtrip:true,maskBytes:JSON.stringify(mask).length,errors}));
  }finally{await browser?.close();controller.dispose();await new Promise(resolve=>io.close(resolve));server.close();}

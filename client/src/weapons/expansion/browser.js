@@ -2,6 +2,7 @@ import { weaponArray } from '../array';
 import { tankState, worldState } from './tactics';
 
 import { weaponDetails } from './weapon-details';
+import { alphabeticalWeapons } from './presentation';
 export { weaponDetails } from './weapon-details';
 
 const element=(tag,text,className)=>{const el=document.createElement(tag);if(text)el.textContent=text;if(className)el.className=className;return el;};
@@ -64,7 +65,8 @@ export const installArsenal = (scene, position = {}) => {
         };
         const refresh=()=>{
             const term=search.value.toLowerCase().trim();results.replaceChildren();
-            const filtered=weaponArray.filter(w=>{const info=weaponDetails(w);return (!onlyOwned||owns(w))&&(category.value==='All categories'||info.category===category.value)&&(collection.value==='all'||(collection.value==='base'&&w.id<30)||(collection.value==='classic'&&w.id>=30&&info.origin.toLowerCase().includes('classic'))||(collection.value==='new'&&w.id>=30&&!info.origin.toLowerCase().includes('classic')))&&`${w.name} ${info.description} ${info.warning} ${info.origin}`.toLowerCase().includes(term);});
+            let filtered=weaponArray.filter(w=>{const info=weaponDetails(w);return (!onlyOwned||owns(w))&&(category.value==='All categories'||info.category===category.value)&&(collection.value==='all'||(collection.value==='base'&&w.id<30)||(collection.value==='classic'&&w.id>=30&&info.origin.toLowerCase().includes('classic'))||(collection.value==='new'&&w.id>=30&&!info.origin.toLowerCase().includes('classic')))&&`${w.name} ${info.description} ${info.warning} ${info.origin}`.toLowerCase().includes(term);});
+            if(scene.sceneData?.gameType===4)filtered=alphabeticalWeapons(filtered);
             resultCount.textContent=`${filtered.length} of ${weaponArray.length} weapons · Target Practice includes the entire arsenal`;
             filtered.forEach(w=>{const row=element('button',`${w.name}${owns(w)?'  •':''}`,'weapon-row');row.dataset.id=w.id;row.addEventListener('click',()=>show(w));results.append(row);});
             if(filtered.length)show(filtered[0]);else details.replaceChildren(element('p','No weapons match your filters.'));

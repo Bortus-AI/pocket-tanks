@@ -1,14 +1,15 @@
 import { ClassicRuntime } from './classic-runtime';
 import { earlyClassicAdaptations } from './classics';
+import { laterClassicAdaptations } from './later-classics';
 import { payloads } from './catalog';
 const fluent=()=>{const shape={destroy:jest.fn()};['setDepth','setStrokeStyle','setOrigin','setPosition','lineStyle','lineBetween','clear'].forEach(name=>{shape[name]=jest.fn(()=>shape);});return shape;};
 const context=()=>Object.fromEntries(['save','restore','beginPath','rect','clip','arc','ellipse','fill','stroke','moveTo','lineTo','closePath'].map(name=>[name,jest.fn()]));
 const setup=(name)=>{
  const tank=x=>({x,y:200,power:40,centre:{x,y:194},body:{setVelocity:jest.fn(),setGravityY:jest.fn(),stop:jest.fn(),updateFromGameObject:jest.fn()},isPointInside:(bx,by)=>Math.abs(bx-x)<12&&Math.abs(by-194)<10,setPosition:jest.fn(),updateScore:jest.fn(),turret:{rotation:Math.PI/4,setRelativeRotation:jest.fn()},setPower:jest.fn()});
  const a=tank(100),b=tank(400),ctx=context();ctx.createLinearGradient=()=>({addColorStop:jest.fn()});
- const scene={tank1:a,tank2:b,events:{once:jest.fn(),off:jest.fn()},add:{graphics:fluent,circle:fluent,line:fluent,text:fluent},tweens:{add:jest.fn()},cache:{audio:{exists:()=>false}}};
+ const scene={tank1:a,tank2:b,events:{once:jest.fn(),off:jest.fn()},add:{graphics:fluent,circle:fluent,ellipse:fluent,line:fluent,text:fluent},tweens:{add:jest.fn()},cache:{audio:{exists:()=>false}}};
  const terrain={width:1200,height:533,context:ctx,update:jest.fn(),getPixel:(x,y)=>({alpha:y>=200?255:0,red:60,green:70,blue:40}),getSlope:()=>0,fixTerrain:jest.fn()};
- const definition=earlyClassicAdaptations.find(w=>w.name===name)||{id:999,name,classicMechanic:name,payload:payloads[0],radius:30,strength:1,count:5,options:{}};
+ const definition=[...earlyClassicAdaptations,...laterClassicAdaptations].find(w=>w.name===name)||{id:999,name,classicMechanic:name,payload:payloads[0],radius:30,strength:1,count:5,options:{}};
  const runtime=new ClassicRuntime(definition),weapon={scene,tank:a,turret:{x:100,y:188,rotation:Math.PI/4},terrain};runtime.create(weapon);
  return {runtime,scene,terrain,weapon};
 };
@@ -20,6 +21,13 @@ test('every added early classic has an explicit supported signature',()=>{
 test('Mud Pie creates actual earth-building fragments',()=>{
  const {runtime}=setup('Mud Pie');runtime.shoot();const p=runtime.projectiles[0];p.age=10;p.vy=2;runtime.classicFlight();
  const children=runtime.projectiles.filter(p=>!p.removed);expect(children).toHaveLength(18);expect(children.every(p=>p.fragmentMode==='dirt')).toBe(true);
+});
+test('Lock Box flies past its apex and resolves on contact',()=>{
+ const {runtime}=setup('Lock Box');runtime.shoot();const p=runtime.projectiles[0];
+ Object.assign(p,{x:300,y:100,age:60,vy:2});runtime.classicFlight();
+ expect(p.removed).not.toBe(true);expect(runtime.laterState).toBeUndefined();
+ Object.assign(p,{x:400,y:194});runtime.impact(p);
+ expect(p.removed).toBe(true);expect(runtime.laterState.kind).toBe('lock-box');
 });
 test('Super Tracer marks offsets without explosions or scoring',()=>{
  const {runtime,scene}=setup('Super Tracer');runtime.shoot();expect(runtime.projectiles).toHaveLength(10);
@@ -60,4 +68,36 @@ test('island excavates around a retained central mass',()=>{
 test('a piercing guided shell excavates a bounded corridor ahead of flight',()=>{
  const {runtime}=setup('guided');runtime.options={pierce:true,range:100};runtime.shoot();const p=runtime.projectiles[0];p.y=220;p.vx=120;p.vy=0;
  runtime.carve=jest.fn();runtime.classicFlight();expect(runtime.carve).toHaveBeenCalled();expect(p.pierceDistance).toBe(2);
+});
+
+
+test('Tar Ball encloses a directly hit tank in opaque black terrain rather than ordinary soil',()=>{
+ const {runtime,terrain}=setup('Tar Ball');runtime.shoot();const p=runtime.projectiles[0];Object.assign(p,{x:400,y:194});runtime.impact(p);
+ expect(terrain.context.fillStyle).toBe('#050508');expect(terrain.context.arc).toHaveBeenCalledWith(400,194,48,0,Math.PI*2);
+ expect(terrain.update).toHaveBeenCalled();
+});
+
+test('Fire Bolt loses actual scoring damage while it flies',()=>{
+ const fresh=setup('Fire Bolt');fresh.runtime.shoot();const a=fresh.runtime.projectiles[0];Object.assign(a,{x:400,y:194,age:0});fresh.runtime.impact(a);
+ const old=setup('Fire Bolt');old.runtime.shoot();const b=old.runtime.projectiles[0];Object.assign(b,{x:400,y:194,age:220});old.runtime.impact(b);
+ const points=fixture=>fixture.scene.tank1.updateScore.mock.calls.reduce((sum,[value])=>sum+value,0);
+ expect(points(fresh)).toBeGreaterThan(points(old));expect(points(old)).toBeGreaterThan(0);
+});
+
+test('a closed foam shelter actually grants its promised shield charge',()=>{
+ const {runtime,scene}=setup('Shelter');runtime.options={closed:true,rubber:true};runtime.shoot();
+ expect(scene.tank1.tactics.shield).toBe(30);
+});
+
+
+test('reflected rays return from the ceiling and world walls',()=>{
+ const {runtime}=setup('sweep');
+ expect(runtime.ray(600,20,-Math.PI/2,80,false,24,1).y).toBeGreaterThan(20);
+ expect(runtime.ray(1180,100,0,80,false,24,1).x).toBeLessThan(1180);
+});
+
+test('a gravity-free ricochet returns from the world edge instead of disappearing',()=>{
+ const {runtime}=setup('bouncer');runtime.options={bounces:3,gravity:0};runtime.shoot();const p=runtime.projectiles[0];Object.assign(p,{x:1197,y:100,vx:300,vy:0,gravity:0});
+ runtime.update();const replacement=runtime.projectiles.find(p=>!p.removed);
+ expect(replacement).toBeDefined();expect(replacement.vx).toBeLessThan(0);expect(replacement.classicBounces).toBe(1);
 });

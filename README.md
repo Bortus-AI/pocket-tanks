@@ -55,11 +55,11 @@ also have distinct terrain aftermaths while preserving their firing sequences.
 
 Weapon identities include delivery, triggers, terrain geometry and aftermath.
 The mechanical audit excludes names, IDs, seeds, color, damage, radius and count
-so tuning changes cannot pass as new mechanics. The visual compositor uses the
-registered weapon identity and actual semantic rules for its silhouette, trail,
-telegraph, action sequence and residue. Its grayscale raster audit checks every
-weapon across six phases plus projectile/trail and reports perceptual neighbors
-for inspection in labeled contact sheets.
+so tuning changes cannot pass as new mechanics. Presentation follows the actual
+delivery and payload: solid projectiles, textured material bursts, ballistic
+fragments and drifting smoke. All 770 weapons own separate texture sets and
+animated physical compositions. The runtime controls where and when impacts
+happen; the render audit checks every weapon and captures contact sheets.
 
 **Auto Turrets** deploys twin sentries with line of sight, heat and ammunition.
 **Missile Turret** saves a visible target lock and fires an arcing missile on a
@@ -113,11 +113,13 @@ shields and rubber/glue material synchronization.
 
 ## Weapon visuals and terrain
 
-Weapon effects use a scene-owned canvas compositor with textured fire/smoke,
-ballistic debris, emissive trails, crystalline ice, corrosive vapor, branching
-energy beams, animated hazard surfaces, and shield hex meshes. Visual effects do
+Weapon effects use textured fireballs, turbulent smoke and flame, ballistic
+debris, emissive trails, crystalline ice, liquid splashes, corrosive vapor,
+branching energy beams, animated hazard surfaces, and soft shield illumination.
+Abstract impact storyboards, trail glyphs and shield wire meshes are removed
+from the live renderer. Visual effects do
 not alter the terrain collision mask, scoring, or shot simulation. Transient
-effects and shared sprites are capped and cleaned up when a scene shuts down.
+effects and sprite pools are capped and cleaned up when a scene shuts down.
 
 The mode menu includes a terrain selector: random, rolling hills, basin, twin
 summits, ridgeline, plateaus, or badlands. Each layout has a distinct height
@@ -130,6 +132,86 @@ To capture the effects and terrain checks after building:
 ```sh
 PLAYWRIGHT_MODULE=/path/to/playwright CHROME_BIN=/path/to/chrome node client/scripts/check-weapon-fx.cjs
 ```
+
+## Animation and WebGL rendering
+
+The client now uses Phaser **3.90.0**, pinned in the package and lockfile. It
+prefers WebGL and automatically uses Canvas when WebGL is unavailable. Append
+`?renderer=canvas` to compare the Canvas renderer explicitly.
+
+Tanks use four-times-resolution artwork with animated tracks, barrel recoil,
+spring suspension, impact rocking and smoothly eased visual aiming. The original
+36 × 24 tank and 6 × 32 turret remain the collision and firing anchors; visual
+easing never changes shot direction, hitboxes, scoring or saved combat state.
+Floating scores use timed easing and are destroyed after fading out.
+
+Clouds, distant ridges and drifting dust move using small reusable textures.
+Each weapon has a dedicated 25-frame atlas: twelve impact frames, two projectile
+frames, three trail frames, three residue frames, two muzzle frames, two beam
+frames and one debris frame. The 770 PNGs live in
+`client/public/assets/weapon-fx/v2/` with their ownership and SHA-256 manifest.
+No two weapons share a finished texture, frame set or animation graph. Lighting,
+scheduling and sprite pooling remain common rendering infrastructure.
+
+The art direction source is `client/scripts/weapon-art/art-direction.cjs`; every
+registered weapon has an entry. Physical node graphs are resolved into
+`client/src/graphics/weapon-art/designs.json`, then shaded by an offline WebGL
+surface renderer. There are no name/ID seeds, recolor variants, glyphs or family
+fallbacks. The pixel audit checks all seven channels in normalized grayscale and
+also checks impact alpha silhouettes, so color cannot hide a repeated effect.
+
+Only relevant weapon atlases load during a match. A bounded GPU cache releases
+inactive atlases; a weapon can render its own geometry immediately while its
+baked surface loads. WebGL batches pooled sprites and Canvas draws the same
+owned frames. Alpha bounds trim transparent margins while preserving animation
+origins. Persistent zones and deployable shots retain the originating
+weapon ID across saves/reconnects. Original weapon collision and scoring clocks
+are unchanged. The particle-only WebGL path avoids a full battlefield upload.
+
+WebGL adds subtle bloom, localized impact illumination, pressure-wave refraction
+and heat shimmer. These effects stay inside the battlefield. Operating-system
+reduced-motion preferences disable tank rocking/recoil, moving scenery, camera
+shake and shader refraction. Canvas retains the artwork and animation improvements.
+
+The visible terrain and collision texture share one source. Collision reads
+remain synchronous while GPU uploads are combined at the end of each frame.
+Original digging tracks also queue a texture refresh without rebuilding collision
+buffers. `npm run check:digging --prefix client` verifies Ground Hog, Worm and
+Homing Worm against real WebGL and Canvas framebuffer pixels.
+The HUD console and changing power meter also explicitly refresh their GPU
+textures. Legacy smoke and Chain Reaction emitters use the Phaser 3.90 API.
+Turn completion and checkpoints run after Arcade synchronizes body positions
+back to tank sprites, so the saved and displayed settled positions agree.
+Fullscreen and viewport changes refresh parent bounds before fitting the canvas
+and repositioning native controls, including square and short landscape screens.
+
+Validation, using the same `CLIENT_BUILD_PATH` when building outside `client/build`:
+
+```sh
+CI=true npm test --prefix client -- --watchAll=false --runInBand
+npm run build --prefix client
+PLAYWRIGHT_MODULE=/path/to/playwright CHROME_BIN=/path/to/chrome npm run check:graphics --prefix client
+```
+
+The graphics check captures real WebGL and Canvas frames, tests visible terrain
+and HUD changes, verifies animation does not alter combat state, fires original
+weapons, stresses particle limits, checks scene cleanup and context restoration,
+and exercises mobile reduced motion and automatic Canvas fallback. Screenshots
+and its report are written to `/tmp/pocket-graphics` (or `GRAPHICS_ARTIFACTS`).
+
+To rebuild and inspect the weapon artwork (Playwright/Chrome and Python Pillow):
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright CHROME_BIN=/path/to/chrome npm run art:bake --prefix client
+npm run art:audit --prefix client
+PLAYWRIGHT_MODULE=/path/to/playwright CHROME_BIN=/path/to/chrome npm run check:weapon-identities --prefix client
+```
+
+The asset audit rejects duplicate impact silhouettes and repeated projectile,
+trail, residue, muzzle, beam or debris frames. The browser audit loads every
+weapon’s owned asset and freezes random debris before comparing live compositor
+frames. Texture ownership, cache limits, scene cleanup, context recovery and
+Canvas fallback are covered by the graphics check.
 
 ## Online draft, reconnecting, and phone names
 
@@ -168,6 +250,43 @@ normal press and release in its own area, separated from the ammo selector and
 aiming inputs. The battlefield keeps its full size. Aiming stays disabled during
 shots and the opponent's online turn. The controls and reconnect screen also
 work in fullscreen.
+
+**ASSIST AIM** in local matches predicts the selected weapon using its own flight
+and collision logic, including muzzle position, guidance, spread, digging, banks,
+beams and authored delivery rules. It searches integer power settings against a
+private terrain copy; previewing cannot consume ammo or change scores, shields,
+terrain or persistent devices. Changing weapon, aim, power, turn or position while
+it searches cancels that result. Self-use and automatically targeted weapons keep
+their existing settings. **BEST AVAILABLE** reports an approximate solution;
+**NO CLEAR SHOT** keeps the current controls when no delivery is found. Random
+scatter and terrain movement during a multi-stage attack can still affect the
+outcome. Assist remains unavailable online.
+
+Verify the complete catalog with `npm run check:aim-assist --prefix client` after
+building. Add `AIM_VERIFY_SHOTS=1` to compare assisted settings with actual Phaser
+shots across left, right, ridge, higher and lower target scenarios. `AIM_IDS=0,5,11,18` limits the catalog
+sweep, and `AIM_REPORT=/tmp/aim.json` selects the JSON report path.
+
+Target Practice lists are alphabetical in both the weapon selector and the
+arsenal, including filtered results. Numeric names use natural ordering. Each
+selection retains its canonical weapon ID.
+
+Tar Ball creates an opaque black terrain sphere around a tank hit by its shell.
+Its dedicated animation uses glossy black tar, and the material survives online
+terrain corrections. Construction explicitly owns its canvas drawing state, so
+previous digging or explosions cannot hide a later wall, shelter, or tar ball.
+
+Run `npm run check:weapon-contracts --prefix client` against a production build
+for the repeatable arsenal audit. It checks all 770 canonical IDs, including full
+shots for all 30 originals, per-payload construction/status/hazard contracts,
+measured drill penetration, named classic behaviors, persistent devices, moving
+tank actors, and tether physics. Tar Ball and the three tether weapons also get
+WebGL/Canvas checks. The individual commands are `check:generated-contracts`,
+`check:early-contracts`, `check:later-contracts`, `check:native-contracts`,
+`check:tether-contracts`, and `check:tar-ball`. Set `CLIENT_BUILD_PATH` to a staged
+build and `CONTRACT_ARTIFACTS` to the full audit report directory. These checks
+record their tested behavior; runtime completion alone does not certify exact
+fidelity to every detail of the original commercial weapons.
 
 The first game tap enters fullscreen where the browser permits it. The **⛶**
 control remains available in menus, combat and recovery, including after exiting

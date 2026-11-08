@@ -51,7 +51,7 @@ const returning = [
 export const classicAdaptations=returning.map(([name,behavior,key,radius,strength,count,description,warning],i)=>({
     id:400+i,name,behavior,category:families.find(f=>f[1]===behavior)?.[2]||'Classic',radius,strength,count,
     type:['jump','selfdome','selfrubberdome','well','pedestal','randomblink','longtunnel'].includes(behavior)?2:0,
-    payload:payloads.find(p=>p.key===key),description,warning,origin:'Classic expansion · adaptation',
+    payload:name==='Fire + Ice'?{...payloads.find(p=>p.key===key),name:'Fire + Frost'}:payloads.find(p=>p.key===key),description,warning,origin:'Classic expansion · adaptation',
     source:'https://classic.blitwise.com/ptanksdepot.html',
 }));
 
@@ -109,16 +109,16 @@ const earlySignatures = [
  ['Old Faithful','pitfall','frost',22,.4,24,{shots:24},'Opens an eruption point and throws a dense fountain of icy projectiles.','A short-range fountain may freeze both tanks.'],
  ['Bouncy Bomb','terraincoat','kinetic',65,.5,1,{rubber:true,crater:65,radius:90},'Carves a crater and coats its walls with reflective rubber.','Future rounds may ricochet into the shooter.'],
  ['Chaos Grenade','random','volatile',45,.8,1,{},'Its seeded fuse produces guided fragments, terrain growth, a large blast, or a backfire.','The outcome remains uncertain until detonation.'],
- ['Tar Ball','terraincoat','kinetic',50,.1,1,{dirt:true,radius:48},'Adds a dense ball of obscuring soil at the landing point.','Can provide the opponent useful cover.'],
+ ['Tar Ball','terraincoat','kinetic',50,.1,1,{dirt:true,material:'tar',radius:48},'Creates a pitch-black ball of solid tar at impact, enclosing a tank that is hit.','Tar traps either tank; keep the impact away from yourself.'],
  ['Lightning Strike','radiallaser','ion',18,.8,16,{shots:16,orbit:12,range:420},'Sixteen electrical rays radiate around the landing point.','A close impact can shock the shooter.'],
  ['Porcupine','sweep','kinetic',14,.8,9,{shots:9,spread:.07,range:720,pierce:true},'A fan of narrow piercing rays cuts through defensive terrain.','Uncovers direct firing lanes for either player.'],
  ['Power Grid','radiallaser','ion',18,.7,12,{shots:12,orbit:95,range:190},'An expanding grid-like ring of electrical emitters threatens a wide perimeter.','The center is less dangerous than the perimeter.'],
  ['Shadow Blast','nonexcavate','kinetic',78,1,1,{},'A dark scoring flash chars the ground without removing earth.','A target buried under cover remains protected.'],
  ['X-Ray Cannon','sweep','ion',14,.8,7,{shots:7,spread:.07,pierce:true,range:800},'Seven penetrating energy rays cross terrain in a spreading fan.','A narrow fan still demands careful aiming.'],
  ['Bazooka','sweep','kinetic',25,1.6,1,{shots:1,range:750},'A powerful line-of-sight strike trades arc freedom for direct damage.','A ridge blocks the shot.'],
- ['Lucky Shot','guided','kinetic',39,1,1,{erase:true},'A guided projectile seeks the enemy after launch.','This adaptation retains cover blocking; clear your own launch lane.'],
+ ['Lucky Shot','guided','kinetic',39,1,1,{erase:true},'Clears a short firing lane in front of the muzzle, then launches a guided missile.','Cover beyond the cleared launch corridor can still stop the missile.'],
  ['Shelter','selfshelter','foam',44,0,1,{rubber:true,tunnel:true},'Builds a reflective arch and cuts a small firing opening beside your tank.','The opening is also an attack path.'],
- ['Fire + Ice','split','frost',20,.5,14,{shots:14,splitMode:'bounce',bounces:3,alternateFire:true},'A field of bouncing chilled fragments spreads around the impact.','This adaptation emphasizes freezing; it does not combine equal fire and ice damage.'],
+ ['Fire + Ice','split','frost',20,.5,14,{shots:14,splitMode:'bounce',bounces:3,alternateFire:true},'Alternating burning and freezing fragments bounce outward, leaving fire on one side and frost on the other.','Burning and freezing rounds can hit either tank; frost can extinguish nearby flames.'],
  ['Anvil','pitfall','kinetic',30,1.1,1,{shots:1},'A heavy impact excavates a vertical pit beneath the target area.','The pit may put the target below your firing line.'],
  ['Flare','split','fire',25,.65,3,{shots:3},'The falling shell opens into three burning warheads.','Open sky gives the fragments space to spread.'],
  ['Super Flare','split','fire',28,.7,5,{shots:5},'Five burning warheads separate as the shell starts to fall.','The spread can burn the firing tank too.'],
@@ -127,7 +127,7 @@ const earlySignatures = [
  ['Phantom','sweep','magnet',12,.6,9,{shots:9,spread:.09,pierce:true,range:850},'A phantom spread passes through ground and targets a broad corridor.','Piercing attacks can open paths back toward you.'],
  ['Flak','spread','kinetic',19,.5,12,{shots:12,spread:.13},'A wide arc of slow explosive rounds fills the firing direction.','Wide coverage often gives low concentrated scoring.'],
  ['Flea Circus','split','kinetic',15,.5,18,{shots:18,splitMode:'bounce',bounces:5},'A swarm of tiny hopping bombs scatters along the terrain.','The hopping swarm can cross back to your tank.'],
- ['Super Star','orbitlaser','ion',20,.9,12,{shots:12,orbit:65,range:400},'Orbiting laser emitters fire toward the enemy from around the landing point.','Cover blocks an emitter even when another has a clear angle.'],
+ ['Super Star','orbitlaser','ion',20,.9,3,{shots:3,orbit:65,range:400},'Three moving pieces orbit the landing area and fire lasers toward the opposing tank.','Cover blocks an emitter even when another has a clear angle.'],
  ['Drillers','groundfan','kinetic',25,.7,7,{shots:7,guided:true},'A fan of drilling warheads tunnels before releasing guided follow-ups.','Spread-out penetration may miss a small target.'],
  ['Gamma Blaster','sweep','magnet',15,.7,11,{shots:11,spread:.065,pierce:true,range:800},'A broad particle fan passes through the terrain and marks nearby armor.','Individual rays are weaker than a concentrated beam.'],
 ];
@@ -135,7 +135,7 @@ const earlySignatures = [
 export const earlyClassicAdaptations=earlySignatures.map(([name,classicMechanic,key,radius,strength,count,options,description,warning],i)=>({
     id:445+i,name,behavior:'classic',classicMechanic,options,category:['selflaunch','selfescape','selfshelter'].includes(classicMechanic)?'Utility':'Classic',radius,strength,count,
     type:['selflaunch','selfescape','selfshelter','wavecoat'].includes(classicMechanic)?2:0,
-    payload:payloads.find(p=>p.key===key),description,warning,origin:'Classic expansion · adaptation',source:'https://classic.blitwise.com/ptanksdepot.html',
+    payload:name==='Fire + Ice'?{...payloads.find(p=>p.key===key),name:'Fire + Frost'}:payloads.find(p=>p.key===key),description,warning,origin:'Classic expansion · adaptation',source:'https://classic.blitwise.com/ptanksdepot.html',
 }));
 
 // Restore signature differences where the first migration used a broad family.

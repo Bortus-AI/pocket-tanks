@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "tile": 128,
+  "columns": 5,
+  "frames": 25,
+  "source": "authored physical geometry; offline WebGL surface bake",
+  "weapons": [
+    {
+      "id": 504,
+      "name": "Fire + Ice",
+      "asset": "assets/weapon-fx/v2/504-mixed.png",
+      "bytes": 114627,
+      "sha256": "15bf3c7925db7f23fd4134c608cee8ba4462778e1e3c87548f6ac6db42dd08b9",
+      "signature": "1d804606d3d405eb8b7199714f5eddc2d4e033a39b9a654cfe64bfacfcc5202f"
+    }
+  ]
+}

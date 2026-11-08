@@ -1,27 +1,32 @@
+import { BattlefieldAtmosphere } from './battlefield-atmosphere';
+
 // Deterministic scenery, painted once. It never participates in terrain collision.
-export const drawBattlefield = (ctx, width, height) => {
-    const sky = ctx.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, '#132b3c');
-    sky.addColorStop(0.32, '#54787f');
-    sky.addColorStop(0.65, '#d6bc93');
-    sky.addColorStop(1, '#e8b77e');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, width, height);
-    const glow = ctx.createRadialGradient(width * .76, height * .28, 0, width * .76, height * .28, width * .4);
-    glow.addColorStop(0, 'rgba(255,229,172,.48)');
-    glow.addColorStop(1, 'rgba(255,222,160,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = '#ffe5b5';
-    ctx.beginPath(); ctx.arc(width * .76, height * .28, 25, 0, Math.PI * 2); ctx.fill();
-    // Long translucent cloud banks.
-    for (let i = 0; i < 14; i++) {
-        ctx.fillStyle = `rgba(245,228,201,${.015 + (i % 3) * .012})`;
-        ctx.beginPath();
-        ctx.ellipse((i * 317 % 1400) / 1400 * width, height * (.08 + (i % 5) * .055), width * .22, 5 + i % 4 * 3, -.025, 0, Math.PI * 2);
-        ctx.fill();
+export const drawBattlefield = (ctx, width, height, {section = 'all', ridge = null} = {}) => {
+    if (section !== 'ridges') {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, '#132b3c');
+        sky.addColorStop(0.32, '#54787f');
+        sky.addColorStop(0.65, '#d6bc93');
+        sky.addColorStop(1, '#e8b77e');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+        const glow = ctx.createRadialGradient(width * .76, height * .28, 0, width * .76, height * .28, width * .4);
+        glow.addColorStop(0, 'rgba(255,229,172,.48)');
+        glow.addColorStop(1, 'rgba(255,222,160,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#ffe5b5';
+        ctx.beginPath(); ctx.arc(width * .76, height * .28, 25, 0, Math.PI * 2); ctx.fill();
+        // Long translucent cloud banks.
+        for (let i = 0; i < 14; i++) {
+            ctx.fillStyle = `rgba(245,228,201,${.015 + (i % 3) * .012})`;
+            ctx.beginPath();
+            ctx.ellipse((i * 317 % 1400) / 1400 * width, height * (.08 + (i % 5) * .055), width * .22, 5 + i % 4 * 3, -.025, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
-    for (let layer = 0; layer < 4; layer++) {
+    if (section !== 'sky') for (let layer = 0; layer < 4; layer++) {
+        if (ridge !== null && ridge !== layer) continue;
         const base = height * (.36 + layer * .1);
         const points = [];
         for (let x = -40; x <= width + 40; x += 28) {
@@ -52,17 +57,21 @@ export const drawBattlefield = (ctx, width, height) => {
             });
         }
     }
-    const vignette = ctx.createRadialGradient(width / 2, height * .35, width * .22, width / 2, height * .4, width * .72);
-    vignette.addColorStop(0, 'rgba(6,18,27,0)'); vignette.addColorStop(1, 'rgba(6,18,27,.5)');
-    ctx.fillStyle = vignette; ctx.fillRect(0, 0, width, height);
+    if (section === 'all') {
+        const vignette = ctx.createRadialGradient(width / 2, height * .35, width * .22, width / 2, height * .4, width * .72);
+        vignette.addColorStop(0, 'rgba(6,18,27,0)'); vignette.addColorStop(1, 'rgba(6,18,27,.5)');
+        ctx.fillStyle = vignette; ctx.fillRect(0, 0, width, height);
+    }
 };
 
 export const addBattlefield = (scene, key = 'landscape') => {
     const canvas = document.createElement('canvas');
     canvas.width = scene.renderer.width; canvas.height = scene.renderer.height;
-    drawBattlefield(canvas.getContext('2d'), canvas.width, canvas.height);
+    const animated = scene.sys.settings.key === 'main-scene';
+    drawBattlefield(canvas.getContext('2d'), canvas.width, canvas.height, {section:animated ? 'sky' : 'all'});
     if (scene.textures.exists(key)) scene.textures.remove(key);
     const texture = scene.textures.addCanvas(key, canvas);
     scene.add.image(canvas.width / 2, canvas.height / 2, key).setDepth(-10);
+    if (animated) scene.atmosphere = new BattlefieldAtmosphere(scene, drawBattlefield);
     return texture;
 };

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { installFullscreenControl } from './graphics/fullscreen-control';
+import { installViewportResize } from './graphics/viewport-resize';
 import { socket } from './socket/index'
 import { MainScene, Scene1, Scene2, Scene3, Scene4, Scene5, LoadingScene, ControlsScene, AboutScene, GuideScene, ScreenshotScene } from './scenes';
 
@@ -55,7 +56,8 @@ import { MainScene, Scene1, Scene2, Scene3, Scene4, Scene5, LoadingScene, Contro
 
 const gameConfig = {
 	title: 'Pocket Tanks',
-  type: Phaser.CANVAS,
+  // WebGL is the default on supported devices; AUTO retains Canvas fallback.
+  type: new URLSearchParams(window.location.search).get('renderer') === 'canvas' ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
   backgroundColor: 'rgba(255,100,100)',
   scale: {
@@ -80,7 +82,8 @@ const gameConfig = {
     transparent: true,
   },
   callbacks: {
-    postBoot: () => {
+    postBoot: game => {
+      installViewportResize(game);
     },
   },
   autoFocus: true,

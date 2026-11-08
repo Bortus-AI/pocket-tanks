@@ -167,7 +167,9 @@ export class Blast {
 
     animateHole1 = () => {
         var ctx = this.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
 
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -175,6 +177,7 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
 
         this.innerRadius = Math.max(this.outerRadius - this.thickness, 0)
         if (this.modernPresentation) return
@@ -235,7 +238,9 @@ export class Blast {
 
     animateHole2 = () => {
         var ctx = this.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
 
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -243,6 +248,7 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
 
         if (this.modernPresentation) {
             if (this.circles.length) this.innerRadius = Math.max(this.outerRadius - this.thickness * this.circles.length, 0)
@@ -320,7 +326,9 @@ export class Blast {
 
     animateHole3 = () => {
         var ctx = this.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
 
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -328,6 +336,7 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
         //this.terrain.update()
 
         if (this.modernPresentation) {

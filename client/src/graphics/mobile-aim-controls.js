@@ -110,7 +110,7 @@ export const createMobileAimControls = hud => {
         sync();
         const canvas=scene.game.canvas?.getBoundingClientRect();
         if(canvas){
-            const position=[canvas.left,canvas.top+canvas.height*2/3,canvas.width].join(':');
+            const position=[canvas.left,canvas.top+canvas.height*2/3,canvas.width,window.innerWidth,window.innerHeight].join(':');
             if(position!==lastPosition){
                 lastPosition=position;root.style.left=`${canvas.left}px`;root.style.top=`${canvas.top+canvas.height*2/3}px`;root.style.width=`${canvas.width}px`;
                 const compact=canvas.width<520&&!(window.innerWidth>window.innerHeight&&canvas.width>=360);

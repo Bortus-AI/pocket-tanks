@@ -272,7 +272,7 @@ export function withMechanicalRules(definition) {
 const optionSemantics={
     roller:['downhill','returnToShooter','dirt','rubber','noCrater','pop','erase','zap'],
     split:['splitMode','alternateFire'], proximity:['splitMode'], spread:['side','gravity','pierce'], stream:['gravity'],
-    guided:['pierce','wrap','gravity'], scatterbuild:['rubber','enemyTurret'], terraincoat:['crater','dirt','rubber','fire'],
+    guided:['pierce','wrap','gravity'], scatterbuild:['rubber','enemyTurret'], terraincoat:['crater','dirt','rubber','fire','erase','material'],
     pillars:['rubber','splitMode'], selflaunch:['self','erase'], selfescape:[], selfshelter:['closed','rubber','tunnel'],
     sweep:['pierce','force'], radiallaser:['pierce'], orbitlaser:['pierce'], nonexcavate:['scramble','decay'],
     pitfall:['both','splitMode'], drillburst:['splitMode'], groundwave:['dirt','rubber','noCrater'], bouncer:['pop','gravity','splitMode','zap'],
@@ -288,7 +288,7 @@ export function mechanicalSignature(definition) {
         if(options[key]===undefined)return;
         meaning[key]=typeof options[key]==='number' ? (key==='gravity' ? options[key]===0?'zero-gravity':'gravity' : !!options[key]) : options[key];
     });
-    return JSON.stringify({mode,payload:definition.payload?.key,options:meaning,rules:definition.mechanicalRules||[]});
+    return JSON.stringify({mode,...((definition.laterEffect||definition.tetherEffect)?{effect:definition.laterEffect||definition.tetherEffect}:{}),payload:definition.payload?.key,options:meaning,rules:definition.mechanicalRules||[]});
 }
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -296,7 +296,7 @@ const immediateModes=new Set(['shield','repair','cleanse','kamikaze','selfdome',
 
 function earth(runtime,x,y,r=17,rubber=false) {
     if(runtime.dirtAt){runtime.dirtAt(x,y,r,rubber);return;}
-    const c=runtime.terrain.context;c.save();c.fillStyle=rubber?'rgb(230,0,230)':'#77856a';c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();c.restore();runtime.terrain.update();
+    const c=runtime.terrain.context;c.save();c.globalCompositeOperation='source-over';c.globalAlpha=1;c.fillStyle=rubber?'rgb(230,0,230)':'#77856a';c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();c.restore();runtime.terrain.update();
     [runtime.scene.tank1,runtime.scene.tank2].forEach(t=>{t.settled=false;});
 }
 function lineCut(runtime,x1,y1,x2,y2,r=8) {
@@ -315,10 +315,10 @@ function aftermath(runtime,p) {
         if(rule==='bridge-span')runtime.build(x,y-20,'bridge');
         if(rule==='rubber-bed')runtime.coat(x,y,70,true);
         if(rule==='glue-bed'){runtime.coat(x,y,70,false);tanksInRange(scene,x,y,80).forEach(t=>{tankState(t).frost=2;tankState(t).frostMoves=0;});}
-        if(rule==='mine-trap')addZone(scene,tank,'mine',x,y,32,runtime.definition.payload.key);
-        if(rule==='oil-trail')for(const dx of [-55,0,55])addZone(scene,tank,'oil',clamp(x+dx,3,runtime.terrain.width-3),runtime.ground(x+dx),22,'fire');
-        if(rule==='fire-vent'){lineCut(runtime,x,y,x,y-65,9);addZone(scene,tank,'fire',x,y,32,'fire');}
-        if(rule==='acid-reservoir')addZone(scene,tank,'acid',x,y,42,'acid');
+        if(rule==='mine-trap')addZone(scene,tank,'mine',x,y,32,runtime.definition.payload.key,runtime.definition.id);
+        if(rule==='oil-trail')for(const dx of [-55,0,55])addZone(scene,tank,'oil',clamp(x+dx,3,runtime.terrain.width-3),runtime.ground(x+dx),22,'fire',runtime.definition.id);
+        if(rule==='fire-vent'){lineCut(runtime,x,y,x,y-65,9);addZone(scene,tank,'fire',x,y,32,'fire',runtime.definition.id);}
+        if(rule==='acid-reservoir')addZone(scene,tank,'acid',x,y,42,'acid',runtime.definition.id);
         if(rule==='cleanse-pulse'){clearZones(scene,x,y,95);tanksInRange(scene,x,y,95).forEach(t=>{const s=tankState(t);s.frost=0;s.frostMoves=0;s.acid=0;s.marked=0;});}
         if(rule==='shield-flip'&&Math.hypot(foe.x-x,foe.y-y)<110){const amount=Math.min(30,tankState(foe).shield);tankState(foe).shield-=amount;addShield(tank,amount);}
         if(rule==='inward-pull'||rule==='upward-kick')tanksInRange(scene,x,y,115).forEach(t=>{t.body.setVelocity(rule==='inward-pull'?Math.sign(x-t.x)*180:0,-230);t.body.setGravityY(300);t.settled=false;});
@@ -365,6 +365,10 @@ export function mayReleaseAtApex(runtime,p) {
     return true;
 }
 
+// Continuations retain one-shot rule state and delivery counters. A rebound
+// must not restart its first-contact fuse/bank or forget earlier bounces.
+export const continuationOptions = projectile => Object.fromEntries(Object.entries(projectile).filter(([key])=>key.startsWith('rule')||['classicBounces','guided','gravity','pierceDistance','wraps'].includes(key)));
+
 export function installMechanicalRules(runtime) {
     if(!runtime.definition.mechanicalRules?.length)return;
     const baseImpact=runtime.impact,baseShoot=runtime.shoot,baseUpdate=runtime.update;
@@ -381,11 +385,11 @@ export function installMechanicalRules(runtime) {
             runtime.schedule(.8,()=>{fuse.destroy();runtime.ruleVisuals=runtime.ruleVisuals.filter(v=>v!==fuse);runtime.impact({...p,removed:false,ruleFuseReady:true,visual:{destroy(){}}});});return;
         }
         if(rules.includes('contact-bank')&&!p.ruleBanked){
-            p.removed=true;p.visual.destroy();runtime.spawn(p.x,p.y-7,-p.vx*.7,-Math.max(100,Math.abs(p.vy)*.65),{gravity:300,ruleBanked:true,ruleFuseReady:p.ruleFuseReady});return;
+            p.removed=true;p.visual.destroy();runtime.spawn(p.x,p.y-7,-p.vx*.7,-Math.max(100,Math.abs(p.vy)*.65),{...continuationOptions(p),gravity:p.gravity??300,ruleBanked:true});return;
         }
         if(rules.includes('burrow-step')&&!p.ruleBurrowed){
             const dir=runtime.direction||1;lineCut(runtime,p.x,p.y,p.x+dir*65,p.y,7);
-            p.removed=true;p.visual.destroy();runtime.spawn(clamp(p.x+dir*65,3,runtime.terrain.width-3),p.y-3,dir*180,-120,{gravity:300,ruleBurrowed:true,ruleFuseReady:p.ruleFuseReady});return;
+            p.removed=true;p.visual.destroy();runtime.spawn(clamp(p.x+dir*65,3,runtime.terrain.width-3),p.y-3,dir*180,-120,{...continuationOptions(p),gravity:p.gravity??300,ruleBurrowed:true});return;
         }
         const carve=runtime.carve,retainsCore=rules.includes('annular-moat')||rules.includes('twin-flanks');
         if(retainsCore)runtime.carve=()=>{};
@@ -402,8 +406,8 @@ export function installMechanicalRules(runtime) {
     runtime.dispose=()=>{(runtime.ruleVisuals||[]).forEach(v=>v.destroy());runtime.ruleVisuals=[];dispose();};
 }
 
-export function applyBuildingPayload(runtime,x,y,r) {
-    applyPayload(runtime.weapon,x,y,r);
+export function applyBuildingPayload(runtime,x,y,r,options={}) {
+    applyPayload(runtime.weapon,x,y,r,0,options);
     // Leech cannot steal through non-scoring construction. Its builder variant
     // instead consumes nearby hostile shield charge to reinforce the builder.
     if(runtime.definition.payload.key==='leech') {

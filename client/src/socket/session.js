@@ -15,7 +15,7 @@ const cached=normalizeSavedRoom(parse(storage('sessionStorage','getItem',TAB_KEY
 export const onlineSession={...(cached||{}),paused:false,restoring:false,restored:false};
 window.onlineSession=onlineSession;
 let socketRef,overlay,pendingRestore,restoreTimer,lastCheckpoint=0,pendingCheckpoint,parkTimer,resumeRequested=false,parkRevision=0,shotRequest=null;
-let lastApplied={savedAt:0,turnNumber:-1},committedCheckpoint=null,inFlightCheckpoint=null,failedCheckpoint=null;
+let lastApplied={savedAt:0,turnNumber:-1},committedCheckpoint=null,inFlightCheckpoint=null,failedCheckpoint=null,checkpointRevision=0;
 const handlers=(event,handler)=>{socketRef.on(event,handler);if(!persistent.has(event))persistent.set(event,new Set());persistent.get(event).add(handler);};
 const sceneEvents=['setRooms','startPick','setWeaponArray','draftState','opponentWeaponPick','startGame','setTerrainPath','playAgain','opponentLeft','opponentShoot','opponentPowerChange','opponentAngleChange','opponentStepLeft','opponentStepRight','opponentWeaponChange','recieveTurn','opponentRequestTurn'];
 export const clearOnlineSceneListeners=socket=>sceneEvents.forEach(event=>socket.listeners(event).forEach(handler=>{if(!persistent.get(event)?.has(handler))socket.off(event,handler);}));
@@ -53,11 +53,15 @@ const saveMembership=session=>{
     const saved={sessionId:session.sessionId||getOnlineSessionId(),roomId:session.roomId,role:session.role,playerId:session.playerId,hostId:session.hostId,host:session.host,player:session.player,phase:session.phase,persistent:true,asynchronous:true,parked:!!session.parked};
     storage('sessionStorage','setItem',TAB_KEY,JSON.stringify(saved));storage('localStorage','setItem',LAST_KEY,JSON.stringify(saved));
 };
-const resetCheckpointTracking=()=>{pendingCheckpoint=null;lastApplied={savedAt:0,turnNumber:-1};};
+const resetCheckpointTracking=()=>{
+    checkpointRevision++;pendingCheckpoint=null;lastApplied={savedAt:0,turnNumber:-1};lastCheckpoint=0;
+    committedCheckpoint=null;inFlightCheckpoint=null;failedCheckpoint=null;
+    delete onlineSession.persistenceStatus;delete onlineSession.persistenceMessage;
+};
 const forgetMembership=()=>{
     const last=resumableOnlineRoom();if(last?.sessionId===getOnlineSessionId())storage('localStorage','removeItem',LAST_KEY);
     storage('sessionStorage','removeItem',TAB_KEY);Object.keys(onlineSession).forEach(key=>delete onlineSession[key]);onlineSession.paused=false;onlineSession.restoring=false;
-    pendingRestore=null;resumeRequested=false;parkRevision++;clearTimeout(restoreTimer);clearTimeout(parkTimer);committedCheckpoint=null;failedCheckpoint=null;resetCheckpointTracking();hideOverlay();
+    pendingRestore=null;resumeRequested=false;parkRevision++;clearTimeout(restoreTimer);clearTimeout(parkTimer);resetCheckpointTracking();hideOverlay();
 };
 export const leaveOnlineMatch=()=>{
     if(socketRef?.connected)socketRef.emit('leaveRoom',{});
@@ -116,6 +120,7 @@ export const getOnlinePresenceText=scene=>{
 const playerState=tank=>({name:tank.name,color:tank.color,weapons:tank.weapons.map(weapon=>({...weapon})),selectedWeapon:tank.selectedWeapon,power:tank.power,rotation:tank.rotation,turretRotation:tank.turret.relativeRotation,score:tank.score,x:tank.x,y:tank.y,movesRemaining:tank.movesRemaining});
 const transmitCheckpoint=(state,serialized,roomId,role,scene)=>{
     if(inFlightCheckpoint)return inFlightCheckpoint.promise;
+    const revision=checkpointRevision;
     onlineSession.persistenceStatus='saving';onlineSession.persistenceMessage='';
     let resolveSave;const promise=new Promise(resolve=>{resolveSave=resolve;});
     const request={roomId,role,serialized,promise,state};inFlightCheckpoint=request;
@@ -123,6 +128,11 @@ const transmitCheckpoint=(state,serialized,roomId,role,scene)=>{
     const complete=ack=>{
         if(settled)return;settled=true;clearTimeout(timer);
         if(inFlightCheckpoint===request)inFlightCheckpoint=null;
+        // A rematch can reuse the room while an old save is still awaiting its
+        // acknowledgement. That reply must not commit or retry the old state.
+        if(revision!==checkpointRevision||onlineSession.roomId!==roomId||onlineSession.matchId!==state.matchId){
+            resolveSave({ok:false,skipped:true,reason:'match-changed'});return;
+        }
         const result=ack?.ok?ack:{ok:false,...ack};
         if(onlineSession.roomId===roomId){
             if(result.ok){
@@ -150,7 +160,7 @@ const transmitCheckpoint=(state,serialized,roomId,role,scene)=>{
 };
 const retryFailedCheckpoint=({force=false}={})=>{
     const failed=failedCheckpoint;
-    if(!failed||failed.roomId!==onlineSession.roomId||!socketRef?.connected||inFlightCheckpoint||(!force&&Date.now()<failed.nextAttempt))return null;
+    if(!failed||failed.roomId!==onlineSession.roomId||failed.state.matchId!==onlineSession.matchId||!socketRef?.connected||inFlightCheckpoint||(!force&&Date.now()<failed.nextAttempt))return null;
     return transmitCheckpoint(failed.state,failed.serialized,failed.roomId,failed.role,activeOnlineScene());
 };
 export const saveOnlineMatch=(scene,{force=false}={})=>{
@@ -175,7 +185,8 @@ export const saveOnlineMatch=(scene,{force=false}={})=>{
     if(committedCheckpoint?.roomId===roomId&&committedCheckpoint.role===role&&committedCheckpoint.serialized===serialized)return Promise.resolve({ok:true,unchanged:true,savedAt:committedCheckpoint.savedAt});
     if(inFlightCheckpoint?.roomId===roomId){
         if(inFlightCheckpoint.serialized===serialized)return inFlightCheckpoint.promise;
-        return force?inFlightCheckpoint.promise.then(()=>saveOnlineMatch(scene,{force:true})):skipped('save-in-flight');
+        const revision=checkpointRevision;
+        return force?inFlightCheckpoint.promise.then(()=>revision===checkpointRevision?saveOnlineMatch(scene,{force:true}):skipped('match-changed')):skipped('save-in-flight');
     }
     return transmitCheckpoint(state,serialized,roomId,role,scene);
 };
@@ -187,11 +198,11 @@ export const requestOnlineShot=(scene,data)=>{
     const roomId=onlineSession.roomId,matchId=scene?.onlineMatchId||onlineSession.matchId;
     if(!roomId||!matchId||!socketRef?.connected||onlineSession.paused||onlineSession.restoring||onlineSession.parked||scene?.activeTank!==1||scene.onlineShotId)return Promise.resolve({ok:false,message:'Your saved turn is not ready.'});
     const turnNumber=Number(scene.onlineTurnNumber??onlineSession.turn?.number??0);
-    const shotId=window.crypto?.randomUUID?.()||`${getOnlineSessionId()}:${turnNumber}:${Date.now()}`;
+    const shotId=window.crypto?.randomUUID?.()||Array.from(window.crypto.getRandomValues(new Uint32Array(4)),n=>n.toString(16).padStart(8,'0')).join('-');
     const promise=(async()=>{
         const saved=await saveOnlineMatch(scene,{force:true});
         if(!saved.ok)return saved;
-        if(roomId!==onlineSession.roomId||!socketRef.connected||onlineSession.paused||onlineSession.restoring)return {ok:false,message:'Reconnect before firing.'};
+        if(roomId!==onlineSession.roomId||matchId!==onlineSession.matchId||!socketRef.connected||onlineSession.paused||onlineSession.restoring)return {ok:false,message:'Reconnect before firing.'};
         const packet={...data,matchId,turnNumber,shotId};
         const result=await new Promise(resolve=>{
             let done=false;const finish=ack=>{if(done)return;done=true;clearTimeout(timer);resolve(ack||{ok:false});};
@@ -335,7 +346,7 @@ export const installOnlineSession=socket=>{
         const active=activeOnlineScene();
         const alreadyRestored=onlineSession.restoreKey===key&&!onlineSession.paused&&active?.scene.isActive();
         const shouldRestore=(session.resumed||onlineSession.restoring)&&!alreadyRestored&&!onlineSession.parked;
-        if(onlineSession.roomId!==session.roomId)resetCheckpointTracking();
+        if(onlineSession.roomId!==session.roomId||onlineSession.matchId!==session.matchId)resetCheckpointTracking();
         Object.assign(onlineSession,session);socket.playerId=session.playerId;socket.onlineRole=session.role;saveMembership(onlineSession);
         if(session.snapshot?.state&&!failedCheckpoint){onlineSession.persistenceStatus='saved';onlineSession.persistenceMessage='';}
         if(shouldRestore&&(failedCheckpoint?.roomId===session.roomId||inFlightCheckpoint?.roomId===session.roomId)){
@@ -382,7 +393,7 @@ export const installOnlineSession=socket=>{
     });
     handlers('startPick',()=>{resetCheckpointTracking();onlineSession.phase='draft';saveMembership(onlineSession);});
     handlers('playAgain',()=>{resetCheckpointTracking();onlineSession.phase='draft';saveMembership(onlineSession);});
-    handlers('startGame',data=>{if(data?.matchId){onlineSession.matchId=data.matchId;onlineSession.turn=data.turn;onlineSession.pendingShot=data.pendingShot||null;onlineSession.phase='match';saveMembership(onlineSession);}});
+    handlers('startGame',data=>{if(data?.matchId){if(onlineSession.matchId!==data.matchId)resetCheckpointTracking();onlineSession.matchId=data.matchId;onlineSession.turn=data.turn;onlineSession.pendingShot=data.pendingShot||null;onlineSession.phase='match';saveMembership(onlineSession);}});
     handlers('opponentLeft',data=>{if(!matchesMembership(data,onlineSession))return;hideOverlay();onlineSession.paused=false;onlineSession.restoring=false;const scene=activeOnlineScene();if(scene){scene.input.keyboard.enabled=true;scene.scene.resume();}forgetMembership();});
     handlers('sessionUnavailable',error=>{
         if(!matchesMembership(error,onlineSession))return;

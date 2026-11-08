@@ -24,7 +24,12 @@ const wait=async(fn,message,timeout=45000)=>{const start=Date.now();while(!await
  const load=async page=>{await page.goto(`http://127.0.0.1:${port}`);await page.waitForFunction(()=>window.socket?.connected&&window.game?.scene.getScene('loading-scene')?.load?.isLoading()===false,null,{timeout:30000});await page.evaluate(()=>{window.game.sound.mute=true;});};
  const ready=(page,key)=>page.waitForFunction(key=>{const s=window.game?.scene.getScene(key);return s?.scene.isActive()&&(!['main-scene','scene-5'].includes(key)||(!window.onlineSession?.paused&&!window.onlineSession?.restoring));},key,{timeout:45000});
  const draftButton=(page,key)=>page.evaluate(key=>{const button=window.game.scene.getScene('scene-5').onlineDraft.buttons[key];if(!button)throw Error(`No draft button ${key}`);button.background.emit('pointerdown');},key);
- const pick=(page,index)=>page.evaluate(index=>{const d=window.game.scene.getScene('scene-5').onlineDraft;d.rows[index].background.emit('pointerdown');d.buttons.select.background.emit('pointerdown');},index);
+ const pick=async(page,index)=>{
+  // The relay can commit a turn before its state update reaches this browser.
+  // Wait for the local UI to enable picking before emitting the user's click.
+  await page.waitForFunction(()=>{const d=window.game.scene.getScene('scene-5').onlineDraft;return d?.state?.turn===d.role&&d.buttons.random.text.alpha===1;},null,{timeout:45000});
+  return page.evaluate(index=>{const d=window.game.scene.getScene('scene-5').onlineDraft;d.rows[index].background.emit('pointerdown');d.buttons.select.background.emit('pointerdown');},index);
+ };
  const resume=async context=>{const page=await makePage(context);await load(page);await page.evaluate(()=>window.game.scene.start('scene-1'));await ready(page,'scene-1');await page.evaluate(()=>{const b=window.game.scene.getScene('scene-1').children.list.find(v=>typeof v.text==='string'&&v.text.startsWith('RESUME ONLINE MATCH'));if(!b)throw Error('Missing saved match Resume');b.emit('pointerdown');});await ready(page,'main-scene');return page;};
  const state=page=>page.evaluate(()=>{
   const s=window.game.scene.getScene('main-scene'),role=window.onlineSession.role,other=role==='host'?'player':'host';
@@ -45,7 +50,7 @@ const wait=async(fn,message,timeout=45000)=>{const start=Date.now();while(!await
   for(const value of observed){
    assert.equal(value.activeRole,activeRole);assert.equal(value.turn,turn);assert.equal(value.players.host.active?1:0,value.activeRole==='host'?1:0);assert.equal(value.players.player.active?1:0,value.activeRole==='player'?1:0);
    assert.equal(Number(value.players.host.active)+Number(value.players.player.active),1,'client has zero or two active tanks after settling');
-   for(const role of ['host','player']){const a=value.players[role],b=canonical.players[role];assert.deepEqual(a.weapons,b.weapons.map(w=>w.id),`${value.role} has incorrect ${role} inventory`);assert.equal(a.score,b.score,`${value.role} has incorrect ${role} score`);assert.ok(Math.abs(a.x-b.x)<2&&Math.abs(a.y-b.y)<2,`${role} positions diverged`);}
+   for(const role of ['host','player']){const a=value.players[role],b=canonical.players[role];assert.deepEqual(a.weapons,b.weapons.map(w=>w.id),`${value.role} has incorrect ${role} inventory`);assert.equal(a.score,b.score,`${value.role} has incorrect ${role} score`);assert.ok(Math.abs(a.x-b.x)<2&&Math.abs(a.y-b.y)<2,`${value.role} observes ${role} at (${a.x}, ${a.y}), checkpoint is (${b.x}, ${b.y})`);}
    assert.deepEqual(value.terrain,canonical.terrainMask,`${value.role} terrain differs from durable checkpoint`);
   }
   checks.push({turn,activeRole,inventories:{host:canonical.players.host.weapons.length,player:canonical.players.player.weapons.length}});return observed;

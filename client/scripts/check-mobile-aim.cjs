@@ -44,10 +44,18 @@ const wait=async(fn,message,timeout=15000)=>{const start=Date.now();while(!await
   const button=label=>mobile.getByRole('button',{name:label,exact:true});
   const layoutChecks=[];
   const checkUncoveredAmmo=async orientation=>{
-   await mobile.waitForTimeout(150);
+   // Resizing the viewport and Phaser's FIT canvas can complete on different
+   // frames, especially with software WebGL. Inspect the settled layout.
+   await mobile.waitForFunction(()=>{
+    const canvas=window.game.canvas.getBoundingClientRect(),root=document.querySelector('#mobile-aim-controls')?.getBoundingClientRect();
+    return root&&Math.abs(canvas.height-Math.min(innerHeight,innerWidth*2/3))<3&&Math.abs(root.y-(canvas.y+canvas.height*2/3))<2&&root.x>=-1&&root.x+root.width<=innerWidth+1&&root.y+root.height<=innerHeight+1;
+   },null,{timeout:10000}).catch(async error=>{
+    const layout=await mobile.evaluate(()=>({canvas:window.game.canvas.getBoundingClientRect().toJSON(),root:document.querySelector('#mobile-aim-controls')?.getBoundingClientRect().toJSON(),classes:document.querySelector('#mobile-aim-controls')?.className,viewport:[innerWidth,innerHeight],fullscreen:!!document.fullscreenElement}));
+    error.message+=`\n${JSON.stringify(layout)}`;throw error;
+   });
    const bounds=await mobile.evaluate(()=>{const box=element=>{const b=element.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};},root=document.querySelector('#mobile-aim-controls'),fire=root.querySelector('[aria-label="Fire selected weapon"]'),ammo=root.querySelector('[aria-label="Selected weapon"]');const hit=element=>{const b=element.getBoundingClientRect();return element.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));};return {canvas:box(window.game.canvas),root:box(root),fire:box(fire),ammo:box(ammo),fireHit:hit(fire),ammoHit:hit(ammo),viewport:{width:innerWidth,height:innerHeight}};});
    assert.ok(bounds.root.y>=bounds.canvas.y+bounds.canvas.height*2/3-2,`${orientation} inline HUD covers terrain`);
-   assert.ok(bounds.root.x>=-1&&bounds.root.y>=-1&&bounds.root.x+bounds.root.width<=bounds.viewport.width+1&&bounds.root.y+bounds.root.height<=bounds.viewport.height+1,`${orientation} HUD exceeds viewport`);
+   assert.ok(bounds.root.x>=-1&&bounds.root.y>=-1&&bounds.root.x+bounds.root.width<=bounds.viewport.width+1&&bounds.root.y+bounds.root.height<=bounds.viewport.height+1,`${orientation} HUD exceeds viewport: ${JSON.stringify(bounds)}`);
    const expectedHeight=Math.min(bounds.viewport.height,bounds.viewport.width*2/3);assert.ok(Math.abs(bounds.canvas.height-expectedHeight)<3,`${orientation} battlefield was shrunk for the controls`);
    const a=bounds.ammo,f=bounds.fire;assert.ok(f.y>=a.y+a.height||f.y+f.height<=a.y||f.x>=a.x+a.width||f.x+f.width<=a.x,`${orientation} Fire covers ammo selector`);assert.equal(bounds.fireHit,true);assert.equal(bounds.ammoHit,true);
    const selector=mobile.getByRole('combobox',{name:'Selected weapon',exact:true});await selector.selectOption({index:1});await mobile.waitForFunction(()=>window.game.scene.getScene('main-scene').tank1.selectedWeapon===1);await selector.selectOption({index:0});await mobile.waitForFunction(()=>window.game.scene.getScene('main-scene').tank1.selectedWeapon===0);

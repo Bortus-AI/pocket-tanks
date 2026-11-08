@@ -47,35 +47,37 @@ export const clearZones = (scene,x,y,r,kinds) => {
         return true;
     });
 };
-export const addZone = (scene,owner,kind,x,y,radius,payload) => {
+export const addZone = (scene,owner,kind,x,y,radius,payload,sourceWeaponId) => {
     const world=worldState(scene);
     // Bounded per-match state and visual objects.
     if(world.zones.length>=24) world.zones.shift().visual?.destroy();
     const color={mine:0xffce79,fire:0xf99758,oil:0x8b85b0,acid:0xb9e875}[kind];
-    const visual=createWeaponZone(scene,{kind,x,y,radius,payload})
+    const weaponId=sourceWeaponId??owner?.turret?.activeWeapon?.id??scene.weaponFX?.lastWeaponOptions?.weaponId;
+    const visual=createWeaponZone(scene,{kind,x,y,radius,payload,weaponId})
         || scene.add.ellipse(x,y-2,radius*2,kind==='mine'?12:18,color,.23).setStrokeStyle(1,color,.8).setDepth(1);
-    world.zones.push({id:world.nextZone++,kind,x,y,radius,payload,owner,ttl:kind==='mine'?8:3,armedAt:world.shot+1,visual});
+    world.zones.push({id:world.nextZone++,kind,x,y,radius,payload,weaponId,owner,ttl:kind==='mine'?8:3,armedAt:world.shot+1,visual});
 };
-export const applyPayload = (weapon,x,y,r,enemyDamage=0) => {
+export const applyPayload = (weapon,x,y,r,enemyDamage=0,options={}) => {
     const {scene,tank}=weapon, key=weapon.weaponHandler.definition.payload.key;
     if(['kinetic','fire','volatile','ion','seismic','acid'].includes(key))damageDeployables(scene,x,y,r,Math.max(5,r*.8),scoreHit);
     disruptDeployables(scene,x,y,r,key);
     const near=tanksInRange(scene,x,y,r+24);
+    const hostile=near.filter(target=>!options.protectOwner||target!==tank);
     if(key==='fire') {
         const oils=worldState(scene).zones.filter(z=>z.kind==='oil'&&distance(z,{x,y})<r+z.radius);
         oils.forEach(z=>{splashScore(weapon,z.x,z.y,z.radius*1.3,.8);});
         clearZones(scene,x,y,r,['oil']);
-        addZone(scene,tank,'fire',x,y,r*.8,key);
+        addZone(scene,tank,'fire',x,y,r*.8,key,weapon.id??weapon.weaponHandler.definition.id);
         near.forEach(t=>{tankState(t).frost=0;});
     }
-    if(key==='frost') {clearZones(scene,x,y,r,['fire']);near.forEach(t=>{tankState(t).frost=2;tankState(t).frostMoves=0;});}
-    if(key==='acid') near.forEach(t=>{tankState(t).acid=2;});
-    if(key==='magnet') near.forEach(t=>{tankState(t).marked=2;});
+    if(key==='frost') {clearZones(scene,x,y,r,['fire']);hostile.forEach(t=>{tankState(t).frost=2;tankState(t).frostMoves=0;});}
+    if(key==='acid') hostile.forEach(t=>{tankState(t).acid=2;});
+    if(key==='magnet') hostile.forEach(t=>{tankState(t).marked=2;});
     if(key==='ion') {
-        near.forEach(t=>{tankState(t).shield=0;});
-        [scene.tank1,scene.tank2].filter(t=>tankState(t).marked&&distance(t.centre,{x,y})<r+130).forEach(t=>{
+        hostile.forEach(t=>{tankState(t).shield=0;});
+        [scene.tank1,scene.tank2].filter(t=>(!options.protectOwner||t!==tank)&&tankState(t).marked&&distance(t.centre,{x,y})<r+130).forEach(t=>{
             scoreHit(tank,t,24);
-            if (!emitWeaponBeam(scene,x,y,t.centre.x,t.centre.y,{payload:'ion',color:0xc9b3ff,heavy:false})) {
+            if (!emitWeaponBeam(scene,x,y,t.centre.x,t.centre.y,{weaponId:weapon.id??weapon.weaponHandler.definition.id,payload:'ion',color:0xc9b3ff,heavy:false})) {
                 const line=scene.add.line(0,0,x,y,t.centre.x,t.centre.y,0xc9b3ff,.9).setOrigin(0).setDepth(5);
                 scene.tweens.add({targets:line,alpha:0,duration:300,onComplete:()=>line.destroy()});
             }
@@ -87,6 +89,12 @@ export const applyPayload = (weapon,x,y,r,enemyDamage=0) => {
         const mines=worldState(scene).zones.filter(z=>z.kind==='mine'&&distance(z,{x,y})<r+z.radius);
         mines.forEach(z=>{splashScore(weapon,z.x,z.y,45,.6);});
         clearZones(scene,x,y,r,['mine']);
+    }
+    // Delayed ordnance belongs to the payload, including walls, fields and
+    // planted hazards that never call burst() during their initial delivery.
+    if(key==='volatile'&&options.delayed!==false&&weapon.weaponHandler.schedule&&weapon.weaponHandler.burst) {
+        const runtime=weapon.weaponHandler;
+        runtime.schedule(.45,()=>runtime.burst(x,y,r*.65,(options.strength??runtime.definition.strength)*.5,false));
     }
 };
 
@@ -100,9 +108,9 @@ const detonateMine = (scene, zone) => {
     ctx.save(); ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath(); ctx.arc(zone.x, zone.y, 32, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     terrain.update(); terrain.fixTerrain(Math.round(zone.x), Math.round(zone.y), 32);
-    const weapon = { scene, tank:zone.owner, weaponHandler:{ definition:{ payload:{key:zone.payload} } } };
+    const weapon = { scene, tank:zone.owner, id:zone.weaponId,weaponHandler:{ definition:{id:zone.weaponId, payload:{key:zone.payload} } } };
     applyPayload(weapon, zone.x, zone.y, 32, enemyDamage);
-    emitWeaponImpact(scene,zone.x,zone.y,45,{payload:zone.payload || 'kinetic',behavior:'mine',color:0xffce79});
+    emitWeaponImpact(scene,zone.x,zone.y,45,{weaponId:zone.weaponId,payload:zone.payload || 'kinetic',behavior:'mine',color:0xffce79});
 };
 
 export const checkTacticalMines = scene => {
@@ -152,7 +160,7 @@ export const importTactics = (scene,snapshot) => {
     const world = worldState(scene);
     Object.assign(world, {shot:snapshot.shot,zones:[],nextZone:1});
     snapshot.zones.forEach(z=>{
-        addZone(scene,z.owner===1?scene.tank2:scene.tank1,z.kind,z.x,z.y,z.radius,z.payload);
+        addZone(scene,z.owner===1?scene.tank2:scene.tank1,z.kind,z.x,z.y,z.radius,z.payload,z.weaponId);
         const added=worldState(scene).zones.at(-1);Object.assign(added,{ttl:z.ttl,armedAt:z.armedAt,id:z.id});
         world.nextZone=Math.max(world.nextZone,z.id+1);
     });

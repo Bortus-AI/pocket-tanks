@@ -17,10 +17,14 @@ export class Terrain extends Textures.CanvasTexture {
         canvas.height = height * 2/3
         canvas.width = width
         if (scene.textures.exists('terrain')) scene.textures.remove('terrain')
-        scene.textures.addCanvas('terrain', canvas);
-        scene.add.image(width/2, height/3, 'terrain');
-
         super(scene.textures, 'terrain', canvas, canvas.width, canvas.height)
+
+        // Register this CanvasTexture subclass itself, matching addCanvas's
+        // registration. A second CanvasTexture would upload a different GPU
+        // source from the one the battlefield image displays.
+        scene.textures.list.terrain = this
+        scene.textures.emit('addtexture', 'terrain', this)
+        this.image = scene.add.image(width/2, height/3, 'terrain')
 
         this.canvas = canvas
         this.scene = scene
@@ -34,8 +38,31 @@ export class Terrain extends Textures.CanvasTexture {
         this.previousSaved = null
         this.soundEffects = ['rocks_1', 'rocks_2', 'rocks_3', 'rocks_4', 'rocks_5', 'rocks_6']
         this.soundEffectIndex = 0
+        this.gpuDirty = false
+        this.uploadCount = 0
+        this.flushTexture = () => {
+            if (!this.gpuDirty) return
+            Textures.CanvasTexture.prototype.refresh.call(this)
+            this.gpuDirty = false
+            this.uploadCount++
+        }
+        scene.events.on('postupdate', this.flushTexture)
+        const physicsWorld = scene.physics.world
+        scene.events.once('shutdown', () => {
+            scene.events.off('postupdate', this.flushTexture)
+            physicsWorld.off('worldstep', this.updateTerrain, this)
+        })
 
         this.scene.physics.world.on('worldstep', this.updateTerrain, this)
+    }
+
+    // Collision buffers still update synchronously. Coalesce GPU uploads until
+    // the scene finishes its frame, even if several weapons edit the mask.
+    refresh() {
+        if (!this.scene) return Textures.CanvasTexture.prototype.refresh.call(this)
+        this.gpuDirty = true
+        this.revision = (this.revision || 0) + 1
+        return this
     }
 
 
@@ -45,7 +72,11 @@ export class Terrain extends Textures.CanvasTexture {
         var height = this.height
         var ctx = this.canvas.getContext('2d')
 
+        ctx.save()
+        ctx.globalCompositeOperation = 'source-over'
+        ctx.globalAlpha = 1
         this.path = drawTerrain(ctx, width, height, this)
+        ctx.restore()
         this.update()
     }
 
@@ -57,7 +88,11 @@ export class Terrain extends Textures.CanvasTexture {
         var height = this.height
         var ctx = this.canvas.getContext('2d')
 
+        ctx.save()
+        ctx.globalCompositeOperation = 'source-over'
+        ctx.globalAlpha = 1
         setTerrain(ctx, width, height, path, this)
+        ctx.restore()
         this.update()
     }
 
@@ -68,14 +103,28 @@ export class Terrain extends Textures.CanvasTexture {
     exportMask = () => {
         const pixels=this.context.getImageData(0,0,this.width,this.height).data;
         const material=i=>!pixels[i+3]?0:pixels[i]===230&&pixels[i+1]===0&&pixels[i+2]===230?2:pixels[i]===135&&pixels[i+1]===155&&pixels[i+2]===82?3:1;
-        const runs=[],values=[];let value=material(0),count=0;
-        for(let i=0;i<pixels.length;i+=4){const state=material(i);if(state===value)count++;else{runs.push(count);values.push(value);count=1;value=state;}}
-        runs.push(count);values.push(value);return {version:2,runs,values};
+        const runs=[],values=[],tar=[];let value=material(0),count=0,tarStart=null;
+        for(let i=0;i<pixels.length;i+=4){
+            const state=material(i);if(state===value)count++;else{runs.push(count);values.push(value);count=1;value=state;}
+            const black=pixels[i+3]>0&&pixels[i]<=8&&pixels[i+1]<=8&&pixels[i+2]<=12;
+            if(black&&tarStart===null)tarStart=i/4;
+            if(!black&&tarStart!==null){tar.push(tarStart,i/4-tarStart);tarStart=null;}
+        }
+        if(tarStart!==null)tar.push(tarStart,pixels.length/4-tarStart);
+        runs.push(count);values.push(value);
+        // Optional visual material layer keeps the existing solidity/material
+        // protocol readable by clients that predate black tar terrain.
+        return {version:2,runs,values,...(tar.length?{tar}:{})};
     }
 
     multiplayerCorrection = data => {
         if(!data || !Array.isArray(data.runs)) return;
         if(data.values && (!Array.isArray(data.values)||data.values.length!==data.runs.length))return;
+        if(data.tar){
+            if(!Array.isArray(data.tar)||data.tar.length%2)return;
+            let end=0;
+            for(let i=0;i<data.tar.length;i+=2){const start=data.tar[i],count=data.tar[i+1];if(!Number.isInteger(start)||!Number.isInteger(count)||start<end||count<1||start+count>this.width*this.height)return;end=start+count;}
+        }
         const image=this.context.getImageData(0,0,this.width,this.height);
         let offset=0,legacy=data.first?1:0;
         for(let run=0;run<data.runs.length;run++){
@@ -88,13 +137,17 @@ export class Terrain extends Textures.CanvasTexture {
                 else if(value===1){
                     const wasRubber=image.data[i]===230&&image.data[i+1]===0&&image.data[i+2]===230;
                     const wasGlue=image.data[i]===135&&image.data[i+1]===155&&image.data[i+2]===82;
-                    if(!image.data[i+3]||wasRubber||wasGlue){image.data[i]=99;image.data[i+1]=112;image.data[i+2]=85;}
+                    const wasTar=image.data[i]<=8&&image.data[i+1]<=8&&image.data[i+2]<=12;
+                    if(!image.data[i+3]||wasRubber||wasGlue||wasTar){image.data[i]=99;image.data[i+1]=112;image.data[i+2]=85;}
                 }
                 image.data[i+3]=value?255:0;
             }
             legacy=1-legacy;
         }
         if(offset!==this.width*this.height)return;
+        for(let run=0;run<(data.tar?.length||0);run+=2)for(let n=data.tar[run],end=n+data.tar[run+1];n<end;n++){
+            const i=n*4;if(!image.data[i+3])continue;image.data[i]=5;image.data[i+1]=5;image.data[i+2]=8;
+        }
         this.context.putImageData(image,0,0);this.update();
     }
 
@@ -122,6 +175,7 @@ export class Terrain extends Textures.CanvasTexture {
             this.blastArray = this.blastArray.filter((hole) => {
                 return (hole.toRemove === false)
             })
+            this.refresh()
         }
         
         if (this.matrix.length === 0) {

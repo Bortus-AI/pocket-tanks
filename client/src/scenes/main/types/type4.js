@@ -1,4 +1,5 @@
 import { Display } from "phaser"
+import { alphabeticalWeapons } from '../../../weapons/expansion/presentation';
 
 /**
 * @param {Phaser.Scene} scene
@@ -10,8 +11,8 @@ export const type4 = (scene) => {
     var player1 = scene.sceneData.player1
     var player2 = scene.sceneData.player2
 
-    scene.tank1.weapons = player1.weapons
-    scene.tank2.weapons = player2.weapons
+    scene.tank1.weapons = alphabeticalWeapons(player1.weapons)
+    scene.tank2.weapons = alphabeticalWeapons(player2.weapons)
     
     scene.tank1.create(int2rgba(player1.color), player1.name)
     scene.tank2.create(int2rgba(player2.color), player2.name)
