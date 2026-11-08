@@ -22,7 +22,7 @@ const mime = {'.js':'text/javascript','.css':'text/css','.html':'text/html','.pn
     const errors = [];
     try {
         await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
-        browser = await chromium.launch({headless:true,...(process.env.CHROME_BIN ? {executablePath:process.env.CHROME_BIN} : {}),args:['--no-sandbox']});
+        browser = await chromium.launch({headless:true,...(process.env.CHROME_BIN ? {executablePath:process.env.CHROME_BIN} : {}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
         const page = await browser.newPage({viewport:{width:1200,height:800}});
         page.on('pageerror',e=>errors.push(e.message));
         await page.goto(`http://127.0.0.1:${server.address().port}`);
@@ -95,12 +95,17 @@ const mime = {'.js':'text/javascript','.css':'text/css','.html':'text/html','.pn
         await page.screenshot({path:path.join(artifacts,'pocket-arsenal.png')});
         await page.locator('.arsenal .close').click();
         await page.locator('.arsenal').waitFor({state:'detached'});
+        // The first game tap enters fullscreen by design; a fullscreen window cannot be resized.
+        await page.evaluate(async()=>{if(document.fullscreenElement)await document.exitFullscreen();window.game.scale.stopFullscreen?.();});
+        await page.waitForFunction(()=>!document.fullscreenElement);
         await page.setViewportSize({width:390,height:844});
         await page.evaluate(()=>window.game.scene.getScene('main-scene').arsenal.open());
         const bounds=await page.locator('.arsenal').boundingBox();assert.ok(bounds.width<=390&&bounds.height<=844,'mobile arsenal exceeds viewport');
         await page.screenshot({path:path.join(artifacts,'pocket-arsenal-mobile.png')});
         await page.locator('.arsenal .close').click();
         await page.locator('.arsenal').waitFor({state:'detached'});
+        await page.evaluate(async()=>{if(document.fullscreenElement)await document.exitFullscreen();});
+        await page.waitForFunction(()=>!document.fullscreenElement);
         await page.setViewportSize({width:1200,height:800});
         await page.evaluate(()=>{
             const scene=window.game.scene.getScene('main-scene');

@@ -14,7 +14,7 @@ const mime={'.js':'text/javascript','.css':'text/css','.html':'text/html','.png'
  let browser;const errors=[];
  try{
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   const page=await browser.newPage({viewport:{width:1200,height:800}});page.on('pageerror',error=>errors.push(error.stack||error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>window.game?.scene.getScene('loading-scene')?.load?.isLoading()===false,null,{timeout:30000});
   await page.evaluate(()=>{window.game.sound.mute=true;const weapons=[{id:30,name:'Impact Howitzer',type:0}];window.game.scene.start('main-scene',{gameType:4,player1:{name:'MATERIAL A',color:0x6eaa99,weapons:weapons.map(w=>({...w}))},player2:{name:'MATERIAL B',color:0xc59a76,weapons:weapons.map(w=>({...w}))}});});

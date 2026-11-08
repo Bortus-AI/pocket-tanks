@@ -28,7 +28,7 @@ const wait=async(fn,message,timeout=20000)=>{const start=Date.now();while(!await
  });
  try{
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   hostContext=await browser.newContext({viewport:{width:1200,height:800}});guestContext=await browser.newContext({viewport:{width:1200,height:800}});
   host=await browserPage(hostContext);guest=await browserPage(guestContext);
   const url=`http://127.0.0.1:${server.address().port}`;

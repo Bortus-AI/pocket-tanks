@@ -7,7 +7,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(process.env.CLIENT_BUILD_PATH||path.resolve(__dirname,'../build'));
 const artifacts=process.env.GRAPHICS_ARTIFACTS||'/tmp/pocket-graphics';
 const mime={'.js':'text/javascript','.css':'text/css','.html':'text/html','.png':'image/png','.mp3':'audio/mpeg','.wav':'audio/wav'};
-const launchOptions={headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox','--enable-unsafe-swiftshader']};
+const launchOptions={headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox','--enable-unsafe-swiftshader']};
 
 (async()=>{
     fs.mkdirSync(artifacts,{recursive:true});
@@ -200,7 +200,7 @@ const launchOptions={headless:true,...(process.env.CHROME_BIN?{executablePath:pr
         const mobileFrame=await mobile.evaluate(()=>new Promise(resolve=>window.game.renderer.snapshot(image=>resolve(image.src))));
         fs.writeFileSync(path.join(artifacts,'mobile-renderer-frame.png'),Buffer.from(mobileFrame.split(',')[1],'base64'));
         await mobile.screenshot({path:path.join(artifacts,'mobile-reduced-motion.png')});await mobileContext.close();
-        fallbackBrowser=await chromium.launch({...launchOptions,args:['--no-sandbox','--disable-webgl']});
+        fallbackBrowser=await chromium.launch({...launchOptions,args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox','--disable-webgl']});
         const fallback=await fallbackBrowser.newPage();await ready(fallback,url);await fixture(fallback);
         report.fallback=await fallback.evaluate(()=>({webgl:!!window.game.renderer.gl,particles:window.game.scene.getScene('main-scene').weaponFX.stats().particleRenderer}));
         assert.equal(report.fallback.webgl,false);assert.equal(report.fallback.particles,'canvas');

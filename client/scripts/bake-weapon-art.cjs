@@ -4,7 +4,7 @@ const root=path.resolve(__dirname,'..'),designs=require('./weapon-art/compile.cj
 (async()=>{
  const out=path.join(root,'public/assets/weapon-fx/v2');fs.mkdirSync(out,{recursive:true});
  const only=process.env.WEAPON_ART_IDS?.split(',').map(Number);const selected=only?designs.filter(d=>only.includes(d.id)):designs;
- const browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox','--enable-unsafe-swiftshader']});
+ const browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox','--enable-unsafe-swiftshader']});
  try{
   const page=await browser.newPage();await page.setContent('<html><body></body></html>');
   const frames=fs.readFileSync(path.join(root,'src/graphics/weapon-art/frames.js'),'utf8').replace(/export /g,'');

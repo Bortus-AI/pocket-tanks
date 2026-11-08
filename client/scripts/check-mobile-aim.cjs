@@ -16,7 +16,7 @@ const wait=async(fn,message,timeout=15000)=>{const start=Date.now();while(!await
  const mark=value=>{stage=value;console.log(`CHECK ${value}`);};
  try{
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'});
   mobile=await context.newPage();mobile.on('pageerror',e=>{errors.push(e.message);console.error('BROWSER ERROR',e.stack);});
   const url=`http://127.0.0.1:${server.address().port}`;

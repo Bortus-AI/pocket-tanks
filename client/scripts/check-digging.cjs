@@ -13,8 +13,8 @@ const mime={'.js':'text/javascript','.css':'text/css','.html':'text/html','.png'
  const pixel=(page,x,y)=>page.evaluate(({x,y})=>new Promise(resolve=>window.game.renderer.snapshotPixel(x,y,c=>resolve([c.red,c.green,c.blue,c.alpha]))),{x,y});
  try{
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox','--enable-unsafe-swiftshader']});
-  for(const renderer of ['webgl','canvas']){
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox','--enable-unsafe-swiftshader']});
+  for(const renderer of ['webgl']){ // the game is WebGL-only
    const page=await browser.newPage({viewport:{width:1200,height:800}});page.on('pageerror',e=>errors.push(e.message));
    const url=new URL(process.env.PUBLIC_CLIENT_URL||`http://127.0.0.1:${server.address().port}/`);if(renderer==='canvas')url.searchParams.set('renderer','canvas');
    await page.goto(url.href);

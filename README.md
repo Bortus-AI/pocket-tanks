@@ -136,8 +136,12 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROME_BIN=/path/to/chrome node client/scr
 ## Animation and WebGL rendering
 
 The client now uses Phaser **3.90.0**, pinned in the package and lockfile. It
-prefers WebGL and automatically uses Canvas when WebGL is unavailable. Append
-`?renderer=canvas` to compare the Canvas renderer explicitly.
+renders with WebGL only; there is no Canvas fallback. Browsers without WebGL see
+a notice asking them to enable hardware acceleration. Baked weapon art is
+regenerated from the live weapon definitions with
+`node client/scripts/weapon-art/export-catalog.cjs --write`, then
+`node client/scripts/weapon-art/compile.cjs`, `npm run art:bake` (optionally
+`WEAPON_ART_IDS=...`) and `npm run art:audit`.
 
 Tanks use four-times-resolution artwork with animated tracks, barrel recoil,
 spring suspension, impact rocking and smoothly eased visual aiming. The original

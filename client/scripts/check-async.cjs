@@ -41,7 +41,7 @@ const wait=async(predicate,message,timeout=30000)=>{const start=Date.now();while
  });
  try{
   await startServer();const firstPort=port;
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   hostContext=await browser.newContext({viewport:{width:1200,height:800}});guestContext=await browser.newContext({viewport:{width:1200,height:800}});
   host=await pageFor(hostContext);guest=await pageFor(guestContext);await Promise.all([load(host),load(guest)]);
   mark('create shared room and draft');

@@ -53,7 +53,7 @@ const wait=async(fn,message,timeout=45000)=>{const start=Date.now();while(!await
  const screenshot=async(page,name)=>page.screenshot({path:`/tmp/pocket-deployables-${name}.png`});
  try{
   await startServer();const firstPort=port;
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   hostContext=await browser.newContext({viewport:{width:1200,height:800}});guestContext=await browser.newContext({viewport:{width:1200,height:800}});
   host=await pageFor(hostContext);guest=await pageFor(guestContext);await Promise.all([load(host),load(guest)]);
   mark('real lobby and deterministic shared-device draft');
@@ -83,15 +83,17 @@ const wait=async(fn,message,timeout=45000)=>{const start=Date.now();while(!await
   for(const page of [host,guest])await page.evaluate(()=>window.game.scene.getScene('scene-5').onlineDraft.buttons.continue.background.emit('pointerdown'));
   await Promise.all([ready(host,'main-scene'),ready(guest,'main-scene')]);
   mark('flat terrain and positions configured before the first durable baseline');
+  // Auto Turrets deploy beside the firing tank (±20px), and sentries reach
+  // 240px. The guest must stand inside that range to draw offline fire.
   await Promise.all([host,guest].map(page=>page.evaluate(()=>{
    const s=window.game.scene.getScene('main-scene'),role=window.onlineSession.role;
    s.terrain.setPath([{x:0,y:350,profile:'hills'},{x:1200,y:350}]);s.terrain.matrix=[];s.terrain.animate=false;s.terrain.blastArray=[];
-   for(const [tank,x]of [[s.tank1,role==='host'?200:550],[s.tank2,role==='host'?550:200]]){tank.setPosition(x,350);tank.setRotation(0);tank.body.updateFromGameObject();tank.body.stop();tank.body.setGravity(0);tank.settled=true;tank.centre={x,y:344};}
+   for(const [tank,x]of [[s.tank1,role==='host'?200:400],[s.tank2,role==='host'?400:200]]){tank.setPosition(x,350);tank.setRotation(0);tank.body.updateFromGameObject();tank.body.stop();tank.body.setGravity(0);tank.settled=true;tank.centre={x,y:344};}
    s.terrain.save();s.HUD.reset();
-   if(role==='host')window.socket.emit('terrainPath',{path:s.terrain.path,hostPos:{x:200,y:350},playerPos:{x:550,y:350}});
+   if(role==='host')window.socket.emit('terrainPath',{path:s.terrain.path,hostPos:{x:200,y:350},playerPos:{x:400,y:350}});
   })));
   await rpc('baseline');await settle(0,'host');
-  assert.equal(disk().snapshot.state.players.host.x,200);assert.equal(disk().snapshot.state.players.player.x,550);
+  assert.equal(disk().snapshot.state.players.host.x,200);assert.equal(disk().snapshot.state.players.player.x,400);
   mark('actual Auto Turrets capsule unfolds two persistent guns');
   await fire(host,ids['Auto Turrets'],{capture:'sentries'});let devices=await settle(1,'player');
   assert.equal(devices.filter(d=>d.kind==='sentry').length,2);assert.ok(devices.every(d=>d.owner==='host'&&d.ammo===6));
@@ -107,14 +109,15 @@ const wait=async(fn,message,timeout=45000)=>{const start=Date.now();while(!await
   host=await resume(hostContext);devices=await settle(2,'host',[host]);assert.deepEqual(devices,afterReaction);assert.equal((await state(host)).playerId,hostId);
   guest=await resume(guestContext);await settle(2,'host');await screenshot(host,'after-server-restart');
   mark('actual Missile Turret capsule deploys a separate silo');
-  await fire(host,ids['Missile Turret'],{capture:'silo'});devices=await settle(3,'player');assert.equal(devices.filter(d=>d.kind==='silo').length,1);assert.equal(devices.find(d=>d.kind==='silo').ammo,2);
+  // Short capsule lobs land between the tanks, clear of the guest's own craters.
+  await fire(host,ids['Missile Turret'],{power:18,capture:'silo'});devices=await settle(3,'player');assert.equal(devices.filter(d=>d.kind==='silo').length,1);assert.equal(devices.find(d=>d.kind==='silo').ammo,2);
   await screenshot(host,'silo-deployed');
   await fire(guest,ids['Single Shot'],{power:8,rotation:0});devices=await settle(4,'host');const silo=devices.find(d=>d.kind==='silo');assert.ok(silo.lock,'silo did not retain its visible delayed target lock');assert.equal(silo.ammo,2);
   await screenshot(host,'silo-locked');
   mark('reload preserves the silo lock without an extra reaction');
   const locked=JSON.parse(JSON.stringify(devices));await host.reload();await ready(host,'main-scene');await settle(4,'host');assert.deepEqual((await state(host)).devices,locked);
   mark('actual Run n Gun capsule deploys the mobile firing drone while silo launches');
-  await fire(host,ids["Run 'n' Gun"],{capture:'runner'});devices=await settle(5,'player');
+  await fire(host,ids["Run 'n' Gun"],{power:18,capture:'runner'});devices=await settle(5,'player');
   const runner=devices.find(d=>d.kind==='runner');assert.ok(runner);assert.equal(runner.ammo,9);assert.equal(devices.find(d=>d.kind==='silo').ammo,1);assert.equal(devices.find(d=>d.kind==='silo').lock,null);
   await screenshot(host,'runner-deployed');
   mark('clear forward firing lane proves a three-round drone strafe, then defensive Aegis');

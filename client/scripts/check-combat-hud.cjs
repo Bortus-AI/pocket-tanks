@@ -7,7 +7,7 @@ const base=path.resolve(process.env.CLIENT_BUILD_PATH||path.resolve(__dirname,'.
  let browser;const errors=[];
  try{
   await new Promise((r,j)=>{server.once('error',j);server.listen(0,'127.0.0.1',r)});
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   const url=`http://127.0.0.1:${server.address().port}`;
   const check=async page=>{
    page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.waitForFunction(()=>window.game?.scene.getScene('loading-scene')?.load.isLoading()===false,null,{timeout:30000});

@@ -56,8 +56,8 @@ import { MainScene, Scene1, Scene2, Scene3, Scene4, Scene5, LoadingScene, Contro
 
 const gameConfig = {
 	title: 'Pocket Tanks',
-  // WebGL is the default on supported devices; AUTO retains Canvas fallback.
-  type: new URLSearchParams(window.location.search).get('renderer') === 'canvas' ? Phaser.CANVAS : Phaser.AUTO,
+  // WebGL only: the weapon art, tints and effects are authored for WebGL and there is no Canvas fallback.
+  type: Phaser.WEBGL,
   parent: 'game',
   backgroundColor: 'rgba(255,100,100)',
   scale: {
@@ -107,8 +107,27 @@ window.sdk = ''
 
 
 window.socket = socket
-window.game = new Phaser.Game(gameConfig);
-installFullscreenControl(window.game);
+const supportsWebGL = () => {
+  try {
+    const probe = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (probe.getContext('webgl2') || probe.getContext('webgl') || probe.getContext('experimental-webgl')));
+  } catch (error) {
+    return false;
+  }
+};
+
+if (supportsWebGL()) {
+  window.game = new Phaser.Game(gameConfig);
+  installFullscreenControl(window.game);
+} else {
+  const parent = document.getElementById('game') || document.body;
+  const notice = document.createElement('div');
+  notice.id = 'webgl-required';
+  notice.setAttribute('role', 'alert');
+  notice.style.cssText = 'max-width:32rem;margin:15vh auto;padding:1.5rem;font:16px/1.5 system-ui,sans-serif;color:#f4efe6;background:#1d2b30;border-radius:12px;text-align:center';
+  notice.textContent = 'Pocket Tanks needs WebGL. Enable hardware acceleration in your browser settings or try a different browser, then reload this page.';
+  parent.append(notice);
+}
 
 window.addEventListener("wheel", (event) => event.preventDefault(), {
   passive: false,

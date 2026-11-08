@@ -7,14 +7,14 @@ const root=process.env.CLIENT_BUILD_PATH||path.resolve(__dirname,'../build');
  const server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;let file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));if(!file.startsWith(root+'/'))return res.writeHead(403).end();if(file.endsWith('/'))file+='index.html';try{res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(fs.readFileSync(file));}catch{res.writeHead(404).end();}});
  let browser;const errors=[],results=[];
  try{
-  await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox','--enable-unsafe-swiftshader']});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox','--enable-unsafe-swiftshader']});
   const page=await browser.newPage({viewport:{width:1200,height:800}});page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')console.error(m.text());});
-  await page.goto(process.env.PUBLIC_CLIENT_URL||`http://127.0.0.1:${server.address().port}/?renderer=canvas`);
+  await page.goto(process.env.PUBLIC_CLIENT_URL||`http://127.0.0.1:${server.address().port}/`);
   await page.waitForFunction(()=>window.game?.scene.getScene('loading-scene')?.load.isLoading()===false,null,{timeout:45000});
   await page.evaluate(()=>{window.game.sound.mute=true;const weapons=[{id:0,name:'Single Shot',type:0}];window.game.scene.start('main-scene',{gameType:4,terrainKind:'plateaus',player1:{name:'AIM A',color:0x6eaa99,weapons},player2:{name:'AIM B',color:0xc59a76,weapons:weapons.map(w=>({...w}))}});});
   await page.waitForFunction(()=>window.game.scene.getScene('main-scene')?.arsenal);
   const renderer=await page.evaluate(()=>window.game.renderer.gl?'webgl':'canvas');
-  if(process.env.PUBLIC_CLIENT_URL)assert.equal(renderer,'webgl','public default must use WebGL');
+  assert.equal(renderer,'webgl','the game must always use WebGL');
   await page.evaluate(()=>{
    const s=window.game.scene.getScene('main-scene');s.physics.world.pause();s.time.paused=true;
    window.aimSetup=(id,reverse=false,ridge=false,elevation=0)=>{

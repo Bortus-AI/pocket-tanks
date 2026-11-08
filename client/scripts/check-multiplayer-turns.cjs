@@ -70,7 +70,7 @@ const wait=async(fn,message,timeout=45000)=>{const start=Date.now();while(!await
  };
  try{
   await startServer();const firstPort=port;
-  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:['--no-sandbox']});
+  browser=await chromium.launch({headless:true,...(process.env.CHROME_BIN?{executablePath:process.env.CHROME_BIN}:{}),args:[...(process.env.CHROME_ARGS||'').split(' ').filter(Boolean),'--no-sandbox']});
   hostContext=await browser.newContext({viewport:{width:1200,height:800},hasTouch:true});guestContext=await browser.newContext({viewport:{width:1200,height:800},hasTouch:true});
   host=await makePage(hostContext);guest=await makePage(guestContext);await Promise.all([load(host),load(guest)]);
   mark('two independent players join and manually draft mixed weapons');
