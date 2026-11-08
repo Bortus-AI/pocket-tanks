@@ -49,7 +49,7 @@ export const installArsenal = (scene, position = {}) => {
                     ion:'Combo: mark armor with a Ferric payload, then arc electricity into it. Ion also strips shields.',
                     seismic:'Combo: open cover with excavation, then follow through with a direct shot. Seismic impacts can detonate mines.',
                     leech:'Combo: land a damaging hit to charge protection for your next position.',
-                    foam:'Combo: protect your position and extinguish dangerous ground. Avoid shielding the opponent.',
+                    foam:'Combo: bury or bog down the enemy, then follow up while they cannot reposition. Fired around yourself it cleanses and shields you.',
                     magnet:'Combo: mark a target before guided ordnance or an Ion discharge.',
                     volatile:'Combo: trap the opponent before the delayed blast, and keep your own tank away.',
                     kinetic:'Combo: remove cover or corrode armor before landing a focused hit.'

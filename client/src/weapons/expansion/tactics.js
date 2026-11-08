@@ -2,7 +2,7 @@ import { createWeaponZone, emitWeaponBeam, emitWeaponImpact } from '../../graphi
 import { advanceDeployables, damageDeployables, disruptDeployables, exportDeployables, importDeployables } from './deployables';
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-export const tankState = tank => tank.tactics || (tank.tactics = { shield:0, frost:0, frostMoves:0, acid:0, marked:0 });
+export const tankState = tank => tank.tactics || (tank.tactics = { shield:0, frost:0, frostMoves:0, acid:0, marked:0, foam:0 });
 export const worldState = scene => {
     if (scene.tacticalWorld) return scene.tacticalWorld;
     const world = { shot:0, zones:[], nextZone:1 };
@@ -39,7 +39,20 @@ export const splashScore = (weapon,x,y,r,factor) => {
     }
     return enemyDamage;
 };
-export const clearStatuses = tank => { const s=tankState(tank); s.frost=0;s.frostMoves=0;s.acid=0;s.marked=0; };
+export const clearStatuses = tank => { const s=tankState(tank); s.frost=0;s.frostMoves=0;s.acid=0;s.marked=0;s.foam=0; };
+// Foam is sprayed as real terrain: a soft mound that can bog down or bury
+// whatever it lands on. It never builds over the firing tank.
+export const FOAM_COLOR = 'rgb(214,240,224)';
+export const depositFoam = (scene,x,y,r) => {
+    const terrain=scene.terrain, ctx=terrain?.context;
+    if(!ctx) return false;
+    const rx=clamp(r*1.15,14,80), ry=clamp(r*.7,10,50);
+    ctx.save(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; ctx.fillStyle=FOAM_COLOR;
+    ctx.beginPath(); ctx.ellipse(x,y+ry*.25,rx,ry,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+    terrain.update?.();
+    [scene.tank1,scene.tank2].forEach(t=>{ if(t) t.settled=false; });
+    return true;
+};
 export const clearZones = (scene,x,y,r,kinds) => {
     const world=worldState(scene);
     world.zones=world.zones.filter(z=>{
@@ -84,7 +97,19 @@ export const applyPayload = (weapon,x,y,r,enemyDamage=0,options={}) => {
         });
     }
     if(key==='leech'&&enemyDamage>0) addShield(tank,Math.ceil(enemyDamage*.6));
-    if(key==='foam') {clearZones(scene,x,y,r,['fire','acid']);near.forEach(t=>{clearStatuses(t);addShield(t,30);});}
+    if(key==='foam') {
+        clearZones(scene,x,y,r,['fire','acid']);
+        // Enemies are coated (treads gummed for their next turn), never shielded.
+        near.filter(t=>t!==tank).forEach(t=>{tankState(t).foam=1;tankState(t).frostMoves=0;});
+        // Foam fired around yourself is protective: cleanse and a small shield.
+        if(near.includes(tank)) {clearStatuses(tank);addShield(tank,30);}
+        else {
+            // Cap mounds per shot so many-shot foam weapons cannot flood the map.
+            const handler=weapon.weaponHandler||{};
+            handler.foamDeposits=(handler.foamDeposits||0)+1;
+            if(handler.foamDeposits<=3) depositFoam(scene,x,y,r);
+        }
+    }
     if(key==='seismic') {
         const mines=worldState(scene).zones.filter(z=>z.kind==='mine'&&distance(z,{x,y})<r+z.radius);
         mines.forEach(z=>{splashScore(weapon,z.x,z.y,45,.6);});
@@ -129,7 +154,9 @@ export const beginTacticalShot = (scene, shooter) => {
     const world = worldState(scene); world.shot++;
     advanceDeployables(scene,world.shot,scoreHit);
     const state = tankState(shooter);
-    if (state.frost > 0) { state.frostMoves = 0; state.frost--; }
+    if (state.frost > 0 || state.foam > 0) state.frostMoves = 0;
+    if (state.frost > 0) state.frost--;
+    if (state.foam > 0) state.foam--;
     if (state.acid > 0) state.acid--;
     if (state.marked > 0) state.marked--;
     checkTacticalMines(scene);

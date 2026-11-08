@@ -378,8 +378,9 @@ export class Tank extends GameObjects.Sprite {
 
     stepLeft = () => {
         const status = tankState(this)
-        if (status.frost > 0 && status.frostMoves >= 1) return
-        if (this.movesRemaining > 0 && status.frost > 0) status.frostMoves++
+        const bogged = status.frost > 0 || status.foam > 0
+        if (bogged && status.frostMoves >= 1) return
+        if (this.movesRemaining > 0 && bogged) status.frostMoves++
 
         if (this.movesRemaining > 0) {
             this.leftSteps = 80
@@ -394,8 +395,9 @@ export class Tank extends GameObjects.Sprite {
 
     stepRight = () => {
         const status = tankState(this)
-        if (status.frost > 0 && status.frostMoves >= 1) return
-        if (this.movesRemaining > 0 && status.frost > 0) status.frostMoves++
+        const bogged = status.frost > 0 || status.foam > 0
+        if (bogged && status.frostMoves >= 1) return
+        if (this.movesRemaining > 0 && bogged) status.frostMoves++
 
         if (this.movesRemaining > 0) {
             this.rightSteps = 80

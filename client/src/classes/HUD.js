@@ -194,7 +194,7 @@ export class HUD extends Textures.CanvasTexture {
         ;[this.scene.tank1, this.scene.tank2].forEach((tank, index) => {
             const state = tankState(tank)
             this.tacticalLabels[index].setText([
-                state.shield > 0 ? `SHIELD ${state.shield}` : '', state.frost ? 'FROZEN' : '',
+                state.shield > 0 ? `SHIELD ${state.shield}` : '', state.frost ? 'FROZEN' : '', state.foam ? 'FOAMED' : '',
                 state.acid ? 'CORRODED' : '', state.marked ? 'MARKED' : ''
             ].filter(Boolean).join(' · '))
         })

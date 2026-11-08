@@ -19,9 +19,22 @@ test('acid amplifies the next damage and leech converts actual damage into shiel
  const s=scene();applyPayload(weapon(s,'acid'),300,100,25);expect(scoreHit(s.tank1,s.tank2,20)).toBe(27);
  applyPayload(weapon(s,'leech'),300,100,25,27);expect(tankState(s.tank1).shield).toBe(17);
 });
-test('foam can accidentally protect the enemy and clears corrosion',()=>{
- const s=scene();tankState(s.tank2).acid=2;applyPayload(weapon(s,'foam'),300,100,30);
- expect(tankState(s.tank2)).toMatchObject({shield:30,acid:0});
+test('foam coats the enemy without shielding it and sprays a terrain mound',()=>{
+ const s=scene();const ctx={save:jest.fn(),restore:jest.fn(),beginPath:jest.fn(),ellipse:jest.fn(),fill:jest.fn()};
+ s.terrain={context:ctx,update:jest.fn()};tankState(s.tank2).acid=2;applyPayload(weapon(s,'foam'),300,100,30);
+ expect(tankState(s.tank2)).toMatchObject({shield:0,acid:2,foam:1});
+ expect(ctx.ellipse).toHaveBeenCalledTimes(1);expect(s.terrain.update).toHaveBeenCalled();
+});
+test('foam around the firing tank cleanses and shields only the owner, without a mound',()=>{
+ const s=scene();const ctx={save:jest.fn(),restore:jest.fn(),beginPath:jest.fn(),ellipse:jest.fn(),fill:jest.fn()};
+ s.terrain={context:ctx,update:jest.fn()};s.tank2.centre={x:120,y:100};tankState(s.tank1).acid=2;
+ applyPayload(weapon(s,'foam'),100,100,30);
+ expect(tankState(s.tank1)).toMatchObject({shield:30,acid:0});expect(tankState(s.tank2)).toMatchObject({shield:0,foam:1});
+ expect(ctx.ellipse).not.toHaveBeenCalled();
+});
+test('foamed treads allow one move and wear off after the next shot',()=>{
+ const s=scene();applyPayload(weapon(s,'foam'),300,100,30);
+ beginTacticalShot(s,s.tank2);expect(tankState(s.tank2)).toMatchObject({foam:0,frostMoves:0});
 });
 test('fire ignites oil; frost extinguishes burning ground',()=>{
  const s=scene();addZone(s,s.tank1,'oil',300,100,40,'fire');applyPayload(weapon(s,'fire'),300,100,40);

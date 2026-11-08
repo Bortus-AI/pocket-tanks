@@ -8,7 +8,7 @@ export const payloads = [
     { key:'ion', name:'Ion', color:0xbe9eff, radius:.7, damage:.75, detail:'Discharges shields and arcs to nearby metal-marked tanks.', risk:'Small crater. Arcs can jump back to you.' },
     { key:'seismic', name:'Tremor', color:0xd8b89b, radius:1.3, damage:.5, detail:'Wide excavation with reduced scoring damage; detonates buried mines.', risk:'Can remove the ground supporting your tank.' },
     { key:'leech', name:'Leech', color:0xec89b5, radius:.75, damage:.65, detail:'Converts successful enemy damage into temporary shield charge.', risk:'Short reach; friendly hits still cost points.' },
-    { key:'foam', name:'Foam', color:0xc6f3cd, radius:.7, damage:.15, detail:'Extinguishes hazards and grants nearby tanks 30 shield points.', risk:'Can protect the opponent. Very little blast damage.' },
+    { key:'foam', name:'Foam', color:0xc6f3cd, radius:.7, damage:.3, detail:'Sprays a sticky foam mound that can bury the target, gums enemy treads to one move next turn, and extinguishes fire and acid.', risk:'Light blast damage. The mound can also block your own line of fire.' },
     { key:'magnet', name:'Ferric', color:0x7ecdc2, radius:.85, damage:.65, detail:'Marks nearby armor for two shots, attracting guided ordnance and ion arcs.', risk:'Does not bypass terrain; can mark you as well.' },
     { key:'volatile', name:'Unstable', color:0xffdf75, radius:1.15, damage:1.2, detail:'A delayed second explosion follows the first, with a small breech backblast.', risk:'Always risks self damage. Keep distance from the impact.' },
 ];
@@ -58,6 +58,7 @@ const supportPayloads = {
     frost:['Freezes other tanks in the support field and extinguishes fire.','The firing tank is excluded from this freeze.'],
     acid:['Corrodes other nearby tanks for two shots; later hits deal 35% more damage.','The firing tank is excluded from this corrosion.'],
     ion:['Preserves your shield while discharging other tanks and arcing to other marked armor.','Small blast area; the firing tank is excluded from the support discharge.'],
+    foam:['Cleanses your tank and adds 30 shield points.','Other nearby tanks are coated and slowed, never shielded.'],
     magnet:['Marks other nearby armor for two shots, attracting guided ordnance and ion arcs.','Does not bypass terrain; the firing tank is excluded from this mark.'],
 };
 const supportText = (family,payload,index) => ['shield','repair','cleanse'].includes(family[1])&&supportPayloads[payload.key]
