@@ -18,6 +18,19 @@ export const worldState = scene => {
     }
     return world;
 };
+// Kinematic tank moves (swap, blink, lift, resume). Arcade's postUpdate adds
+// (position - prevFrame) to the sprite every step, so moving the sprite and
+// re-syncing the body without also resetting prev/prevFrame applies the jump
+// twice and can throw both tanks off the map.
+export const teleportTank = (tank, x, y) => {
+    tank.setPosition(x, y);
+    const body = tank.body;
+    if (!body) return;
+    body.updateFromGameObject?.();
+    body.prev?.copy?.(body.position);
+    body.prevFrame?.copy?.(body.position);
+    body.stop?.();
+};
 export const tanksInRange = (scene,x,y,r) => [scene.tank1,scene.tank2].filter(t => distance(t.centre || t,{x,y}) < r);
 export const enemyOf = (scene,tank) => tank === scene.tank1 ? scene.tank2 : scene.tank1;
 export const SHIELD_CAP = 150;

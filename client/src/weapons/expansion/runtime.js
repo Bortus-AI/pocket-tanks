@@ -3,7 +3,7 @@ import { advanceDrill } from './drill-flight';
 import { shootEarlyEffect, impactEarlyEffect, updateEarlyEffect, disposeEarlyEffect } from './early-classic-effects';
 import { shootLaterEffect, impactLaterEffect, updateLaterEffect, disposeLaterEffect } from './later-classic-effects';
 import { emitWeaponImpact, emitWeaponBeam, createWeaponProjectile, emitWeaponMuzzle, emitTerrainBuild } from '../../graphics/weapon-fx';
-import { applyPayload, splashScore, scoreHit, safeLaunch, tankState, addShield, clearStatuses, clearZones, addZone, enemyOf, distance, tanksInRange } from './tactics';
+import { teleportTank, applyPayload, splashScore, scoreHit, safeLaunch, tankState, addShield, clearStatuses, clearZones, addZone, enemyOf, distance, tanksInRange } from './tactics';
 import { withMechanicalRules, installMechanicalRules, applyBuildingPayload, mayReleaseAtApex } from './unique-mechanics';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const builders=['wall','dome','berm','platform','bridge','seed'];
@@ -122,7 +122,7 @@ export class ExpansionRuntime {
             if(behavior==='well')for(let y=0;y<tank.y;y+=22)this.carve(tank.x,y,18);
             if(behavior==='pedestal'){this.build(tank.x,tank.y-30,'wall');tank.setY(tank.y-100);tank.body.updateFromGameObject();tank.settled=false;}
             if(behavior==='jump')safeLaunch(this.scene,tank,Math.sin(turret.rotation)*tank.power*4,-Math.cos(turret.rotation)*tank.power*4);
-            if(behavior==='randomblink'){const x=24+this.random()*(this.terrain.width-48);tank.setPosition(x,this.ground(x)-1);tank.body.updateFromGameObject();tank.body.stop();tank.settled=false;}
+            if(behavior==='randomblink'){const x=24+this.random()*(this.terrain.width-48);teleportTank(tank,x,this.ground(x)-1);tank.settled=false;}
             if(behavior==='longtunnel'){for(let x=0;x<this.terrain.width;x+=20){this.carve(x,tank.y+12,16);if(this.definition.options?.rubber)this.coat(x,tank.y+12,24,true);}}
             if(behavior==='cheapshot'){const foe=enemyOf(this.scene,tank);this.burst(foe.centre.x,foe.centre.y);}
             else applyBuildingPayload(this,tank.x,tank.y,this.definition.radius,{protectOwner:true});
@@ -195,14 +195,14 @@ export class ExpansionRuntime {
             // empty column fizzles instead of dropping the tank to the map floor.
             const t=this.weapon.tank,tx=clamp(Math.round(x),24,this.terrain.width-24),top=this.surface(tx);
             if(top===null){this.fizzle(tx,y,'NO GROUND');return;}
-            emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());t.setPosition(tx,top-1);t.body.updateFromGameObject();t.body.stop();t.settled=false;emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());
+            emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());teleportTank(t,tx,top-1);t.settled=false;emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());
             applyBuildingPayload(this,tx,top,radius,{protectOwner:true});return;
         }
         if(behavior==='swap'){
             const foe=enemyOf(this.scene,this.weapon.tank),t=this.weapon.tank;
             if(distance(foe.centre,{x,y})<75){
                 const pos={x:t.x,y:t.y};emitWeaponImpact(this.scene,t.x,t.y,30,this.fxOptions());emitWeaponImpact(this.scene,foe.x,foe.y,30,this.fxOptions());
-                t.setPosition(foe.x,foe.y);foe.setPosition(pos.x,pos.y);[t,foe].forEach(tank=>{tank.body.updateFromGameObject();tank.body.stop();tank.settled=false;});
+                const foePos={x:foe.x,y:foe.y};teleportTank(t,foePos.x,foePos.y);teleportTank(foe,pos.x,pos.y);[t,foe].forEach(tank=>{tank.settled=false;});
                 // The payload follows the enemy to your old position.
                 applyBuildingPayload(this,pos.x,pos.y,radius,{protectOwner:true});
             }else applyBuildingPayload(this,x,y,radius,{protectOwner:true});

@@ -2,7 +2,7 @@ import { shootTetherEffect, impactTetherEffect } from './tether-effects';
 import { shootEarlyEffect, impactEarlyEffect } from './early-classic-effects';
 import { shootLaterEffect, impactLaterEffect } from './later-classic-effects';
 import { ExpansionRuntime, makeExpansionWeapon, weaponIcon, volatileBackblast } from './runtime';
-import { applyPayload, splashScore, scoreHit, enemyOf, distance, tankState, addZone } from './tactics';
+import { teleportTank, applyPayload, splashScore, scoreHit, enemyOf, distance, tankState, addZone } from './tactics';
 import { emitWeaponImpact, emitWeaponBeam, createWeaponProjectile, emitWeaponMuzzle, emitTerrainBuild } from '../../graphics/weapon-fx';
 import { withMechanicalRules, installMechanicalRules, applyBuildingPayload, mayReleaseAtApex, continuationOptions } from './unique-mechanics';
 import { deployWeaponDevice } from './deployables';
@@ -77,7 +77,7 @@ export class ClassicRuntime extends ExpansionRuntime {
         emitTerrainBuild(this.scene,x,y,material==='tar'?'tar':rubber?'rubber':'dirt',this.fxOptions({radius:r,terrainMaterial:material}));
         [this.scene.tank1,this.scene.tank2].forEach(t=>{t.settled=false;});
     }
-    lift(tank,x,y) {tank.setPosition(clamp(x,22,this.terrain.width-22),clamp(y,1,this.terrain.height-2));tank.body.updateFromGameObject();tank.body.stop();tank.settled=false;}
+    lift(tank,x,y) {teleportTank(tank,clamp(x,22,this.terrain.width-22),clamp(y,1,this.terrain.height-2));tank.settled=false;}
     impulse(tank,vx,vy) {tank.body.setVelocity(vx,vy);tank.body.setGravityY(300);tank.settled=false;}
     fragments(x,y,mode=this.options.splitMode||'blast',count=this.options.shots||this.definition.count) {
         count=clamp(count,1,24);
