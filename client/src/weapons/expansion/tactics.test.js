@@ -1,6 +1,6 @@
 import { expansionCatalog } from './catalog';
 import { classicAdaptations } from './classics';
-import { tankState, scoreHit, applyPayload, addShield, addZone, beginTacticalShot, exportTactics, importTactics, worldState } from './tactics';
+import { teleportTank, tankState, scoreHit, applyPayload, addShield, addZone, beginTacticalShot, exportTactics, importTactics, worldState } from './tactics';
 const tank=(x)=>({x,y:100,centre:{x,y:100},score:0,movesRemaining:4,updateScore(points){this.score+=points;},isPointInside(){return false;}});
 const scene=()=>({tank1:tank(100),tank2:tank(300),add:{ellipse:()=>({setStrokeStyle(){return this;},setDepth(){return this;},destroy:jest.fn()}),line:()=>({setOrigin(){return this;},setDepth(){return this;}})},tweens:{add:jest.fn()}});
 const weapon=(s,key)=>({scene:s,tank:s.tank1,weaponHandler:{definition:{payload:{key}}}});
@@ -142,4 +142,14 @@ test('catalog balance and truthful support text',()=>{
 test('fire burns away foam as well as thawing frost',()=>{
  const s=scene();tankState(s.tank2).foam=1;tankState(s.tank2).frost=2;applyPayload(weapon(s,'fire'),300,100,30);
  expect(tankState(s.tank2)).toMatchObject({foam:0,frost:0});
+});
+test('teleportTank resets the arcade frame delta so a swap is not applied twice',()=>{
+ // Mirrors Phaser Arcade Body.postUpdate: sprite.x += position.x - prevFrame.x.
+ const vec=(x,y)=>({x,y,copy(v){this.x=v.x;this.y=v.y;return this;}});
+ const tank={x:100,y:300,setPosition(x,y){this.x=x;this.y=y;return this;}};
+ tank.body={position:vec(100,300),prev:vec(100,300),prevFrame:vec(100,300),stop:jest.fn(),
+  updateFromGameObject(){this.position.x=tank.x;this.position.y=tank.y;},
+  postUpdate(){tank.x+=this.position.x-this.prevFrame.x;tank.y+=this.position.y-this.prevFrame.y;}};
+ teleportTank(tank,750,280);tank.body.postUpdate();
+ expect({x:tank.x,y:tank.y}).toEqual({x:750,y:280});expect(tank.body.stop).toHaveBeenCalled();
 });

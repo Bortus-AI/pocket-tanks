@@ -1,4 +1,4 @@
-import { exportTactics, importTactics, worldState } from '../weapons/expansion/tactics';
+import { exportTactics, importTactics, teleportTank, worldState } from '../weapons/expansion/tactics';
 import { normalizeSavedRoom, canApplyCheckpoint, onlinePresenceText, hasUnsettledShot, matchesMembership, isDefinitiveSessionLoss } from './session-state';
 const ID_KEY='pocket-online-session-id';
 const TAB_KEY='pocket-online-room';
@@ -257,7 +257,7 @@ export const applyOnlineSnapshot=(scene,snapshot)=>{
     [role,other].forEach((slot,index)=>{
         const tank=index===0?scene.tank1:scene.tank2,saved=state.players[slot];
         tank.weapons=saved.weapons.map(weapon=>({...weapon}));tank.selectedWeapon=saved.selectedWeapon;tank.movesRemaining=saved.movesRemaining;
-        tank.setPosition(saved.x,saved.y).setRotation(saved.rotation);tank.body.updateFromGameObject();tank.body.stop();tank.body.setGravity(0);tank.settled=true;
+        tank.setRotation(saved.rotation);teleportTank(tank,saved.x,saved.y);tank.body.setGravity(0);tank.settled=true;
         tank.setPower(saved.power);tank.turret.setRelativeRotation(saved.turretRotation);tank.score=saved.score;tank.centre={x:saved.x,y:saved.y-6};
         tank.active=state.activeRole===slot;
     });
