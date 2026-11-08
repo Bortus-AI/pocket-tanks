@@ -1,3 +1,7 @@
+import { saveOnlineMatch, getOnlinePresenceText, parkOnlineMatch, processOnlineSession, leaveOnlineMatch } from '../../socket/session';
+import { terrainProfile } from '../../graphics/terrain-layouts';
+import { installArsenal } from '../../weapons/expansion/browser';
+import { addBattlefield } from '../../graphics/battlefield';
 import Phaser ,{ Scene, GameObjects, BlendModes, Textures, Display } from 'phaser';
 import { HUD } from '../../classes/HUD';
 import { Tank } from '../../classes/Tank';
@@ -35,9 +39,12 @@ export class MainScene extends Scene {
 
 
     init = (data) => {
+        this.HUD = null
         this.sceneData = data
         this.activeTank = 0
         this.gameOver = false
+        this.exitMenuContent = null
+        this.onlineTurnStatus = null
     }
 
 
@@ -68,6 +75,9 @@ export class MainScene extends Scene {
             }
         })
 
+        this.pendingOnlineTurn = null
+        this.turnRequestPending = false
+        this.tacticalWorld = null
         this.createBackground()
         this.createBlastLayer()
         this.createPointsLayer()
@@ -92,7 +102,11 @@ export class MainScene extends Scene {
 
         this.showTurnPointer()
 
+        this.terrainLabel=this.add.text(this.renderer.width/2,50,terrainProfile(this.terrain.layoutKind).name.toUpperCase(),{fontFamily:'Arial',fontSize:12,color:'#ced8c1',letterSpacing:3}).setOrigin(.5).setDepth(6)
         this.createHUD()
+        installArsenal(this)
+        if(this.sceneData.gameType===3)this.onlineTurnStatus=this.add.text(this.renderer.width/2,124,'',{fontFamily:'Arial',fontSize:13,color:'#d3d9bf',backgroundColor:'#17333c',padding:{x:10,y:5},wordWrap:{width:620}}).setOrigin(.5,0).setDepth(8)
+        if(this.sceneData.resumeSnapshot?.state?.gameOver)this.events.once('postupdate',()=>this.showGameOver())
 
         this.sound.stopAll()
        
@@ -102,44 +116,6 @@ export class MainScene extends Scene {
 
         var socket = window.socket
         
-        socket.on('recieveTurn', ({terrainData, pos1, pos2, rotation1, rotation2}) => {
-            if (this.terrain.animate === true) return
-            if (this.terrain.blastArray.length !== 0) return
-            if (this.tank1.settled === false) return
-            if (this.tank2.settled === false) return
-
-            if (this.activeTank === 2 && this.tank2.active === false && this.tank2.turret.activeWeapon === null){
-                this.activeTank = 1
-                this.tank1.active = true
-                this.HUD.reset()
-                this.terrain.frameCount = -1
-                this.terrain.multiplayerCorrection(terrainData)
-
-                this.tank1.setPosition(pos2.x, pos2.y)
-                this.tank2.setPosition(pos1.x, pos1.y)
-                this.tank1.setRotation(rotation2)
-                this.tank2.setRotation(rotation1)
-                
-                this.terrain.multiplayerPoints = []
-                this.terrain.addPixels = []
-                //console.log('turn 1')
-                this.showTurnPointer()
-            }
-        })
-
-        socket.on('opponentRequestTurn', () => {
-            if (this.terrain.animate === true) return
-            if (this.terrain.blastArray.length !== 0) return
-            if (this.tank1.settled === false) return
-            if (this.tank2.settled === false) return
-
-            if (this.activeTank === 2 && this.tank2.active === true && this.tank2.turret.activeWeapon === null) {
-                socket.emit('giveTurn', {terrainData: this.terrain.multiplayerPoints, pos1: {x: this.tank1.x, y: this.tank1.y}, pos2: {x: this.tank2.x, y: this.tank2.y}, rotation1: this.tank1.rotation, rotation2: this.tank2.rotation})
-                this.terrain.save()
-            }
-        })
-
-
         this.input.keyboard.on('keydown', (e) => {
             if (e.keyCode === 27) {
                 this.sound.play('click', {volume: 0.3})
@@ -161,6 +137,7 @@ export class MainScene extends Scene {
         backbtn.setDepth(10)
         
         backbtn.setInteractive()
+        if (this.HUD.mobileAim) backbtn.setVisible(false).disableInteractive()
 
         backbtn.on('pointerdown', () => {
             this.sound.play('click', {volume: 0.3})
@@ -173,7 +150,11 @@ export class MainScene extends Scene {
 
 
     update = (time, delta) => {
+        processOnlineSession(this)
+        this.onlineTurnStatus?.setText(getOnlinePresenceText(this))
+        this.terrainLabel?.setText(terrainProfile(this.terrain.layoutKind).name.toUpperCase())
         this.HUD.refresh()
+        saveOnlineMatch(this)
         this.checkSwitchTurn()
 
         this.input.mousePointer.prev = {x: this.input.mousePointer.x, y: this.input.mousePointer.y}
@@ -196,26 +177,7 @@ export class MainScene extends Scene {
 
 
     createBackground = () => {
-        var canvas = document.createElement('canvas')
-        var ctx = canvas.getContext('2d')
-
-        canvas.height = this.renderer.height
-        canvas.width = this.renderer.width
-
-        var grd = ctx.createLinearGradient(0, 0, 0, canvas.height)
-        grd.addColorStop(0, 'rgba(0,0,0,1)')
-        grd.addColorStop(0.30, 'rgba(30,10,40,1)')
-        grd.addColorStop(0.40, 'rgba(50,20,70,1)')
-        grd.addColorStop(0.5, 'rgba(90,30,130,1)')
-        grd.addColorStop(1, 'rgba(200,40,255,1)')
-
-        //ctx.fillStyle = grd
-        ctx.fillStyle = 'rgba(0,0,0,1)'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-        if (this.textures.exists('background')) this.textures.remove('background')
-        this.background = this.textures.addCanvas('background', canvas)
-        this.add.image(canvas.width/2, canvas.height/2, 'background').setDepth(-3)
+        this.background = addBattlefield(this, 'background')
     }
 
 
@@ -277,19 +239,20 @@ export class MainScene extends Scene {
 
 
     createAutoAdjust = () => {
+        if (this.sceneData.gameType === 3) return
         var h = 60
         var w = 180
 
         var adBtnContainer = this.add.container(this.renderer.width/2, this.renderer.height * 8/9)
         
-        var adBtnText = this.add.text(0, 0, "Auto Adjust").setFontSize(18).setFontFamily('Verdana').setFontStyle('bold')
+        var adBtnText = this.add.text(0, 0, "ASSIST AIM").setFontSize(18).setFontFamily('Verdana').setFontStyle('bold')
         
         if (!this.game.device.os.desktop){
             adBtnText.setFontSize(26)
             h = h * 1.3
             w = w * 1.3
         }
-        adBtnText.setOrigin(0.5, 0.5).setColor("rgba(0,0,0,1)")
+        adBtnText.setOrigin(0.5, 0.5).setColor("#d5e0cf")
 
         var clapperBoard = this.add.image(0, 0, 'clapperboard')
         clapperBoard.displayHeight = 40
@@ -298,8 +261,10 @@ export class MainScene extends Scene {
         var averageWidth = (adBtnText.displayWidth + clapperBoard.displayWidth + 10) / 2
         adBtnText.setX(adBtnText.displayWidth/2 - averageWidth)
         clapperBoard.setX(averageWidth - clapperBoard.displayWidth/2)
+        clapperBoard.setVisible(false)
+        adBtnText.setX(0)
         
-        var adBtnBackground = this.add.rectangle(0, 0, w, h, 0xcccccc)
+        var adBtnBackground = this.add.rectangle(0, 0, w, h, 0x34535b)
         adBtnBackground.setOrigin(0.5,0.5)
         
         adBtnContainer.add(adBtnBackground)
@@ -308,10 +273,6 @@ export class MainScene extends Scene {
 
         adBtnContainer.setDepth(100)
 
-        if (this.sceneData.gameType === 3) {
-            adBtnBackground.setFillStyle(0x999999)
-        }
-
         const autoAdjust = () => {
             var tank = null;
             if (this.activeTank === 1) tank = this.tank1
@@ -319,7 +280,7 @@ export class MainScene extends Scene {
             if (tank !== null) {
                 tank.autoAdjust()
             }
-            adBtnText.setText("Auto Adjust")
+            adBtnText.setText("ASSIST AIM")
             adBtnBackground.setInteractive()
             //adBtnContainer.setInteractive()
         }
@@ -374,27 +335,27 @@ export class MainScene extends Scene {
         if (this.tank1.settled === false) return
         if (this.tank2.settled === false) return
         if (this.gameOver === true) return
-        var socket
-
         if (this.tank1.weapons.length === 0 && this.tank2.weapons.length === 0) {
+            if (this.sceneData.gameType === 3 && this.activeTank !== 1) return
             if (this.tank1.turret.activeWeapon === null && this.tank2.turret.activeWeapon === null) {
                 this.showGameOver()
                 this.tank1.active = false
                 this.tank2.active = false
                 this.activeTank = 0
+                saveOnlineMatch(this,{force:true})
             }
         }
 
         else if (this.activeTank === 1 && this.tank1.active === false && this.tank1.turret.activeWeapon === null) {
             //this.terrain.restore()
             this.terrain.frameCount = -1
+            this.turnRequestPending = false
             this.activeTank = 2
             this.tank2.active = true
             this.HUD.reset()
             if (this.sceneData.gameType === 3) {
-                socket = window.socket
-                socket.emit('giveTurn', {terrainData: this.terrain.multiplayerPoints, pos1: {x: this.tank1.x, y: this.tank1.y}, pos2: {x: this.tank2.x, y: this.tank2.y}, rotation1: this.tank1.rotation, rotation2: this.tank2.rotation})
                 this.terrain.save()
+                saveOnlineMatch(this,{force:true})
             }
             //console.log('turn 2')
             this.showTurnPointer()
@@ -412,10 +373,8 @@ export class MainScene extends Scene {
                 //console.log('turn 1')
                 this.showTurnPointer()
             }
-            else {
-                socket = window.socket
-                socket.emit('requestTurn', {})
-            }
+            // Online control changes only when the completed server checkpoint arrives.
+
         }
     }
 
@@ -567,11 +526,8 @@ export class MainScene extends Scene {
 
             const endGame = () => {
                 this.sound.stopByKey('winner')
-                this.scene.start('scene-1')
-                if (this.sceneData.gameType === 3) {
-                    const socket = window.socket
-                    socket.emit('leaveRoom', {})
-                }
+                if (this.sceneData.gameType === 3) parkOnlineMatch()
+                else this.scene.start('scene-1')
             }
 
             if (window.sdk === 'crazygames') {
@@ -612,7 +568,7 @@ export class MainScene extends Scene {
         const screenCenterX = this.terrain.width/2
         const screenCenterY = this.terrain.height/2
         
-        var x = this.add.text(screenCenterX, screenCenterY, 'EXIT GAME ?')
+        var x = this.add.text(screenCenterX, screenCenterY, this.sceneData.gameType===3?'SAVE & RETURN TO MENU ?':'EXIT GAME ?')
         var a = this.add.text(screenCenterX - 80, screenCenterY + 50, 'YES')
         var y = this.add.text(screenCenterX, screenCenterY + 50, '/')
         var b = this.add.text(screenCenterX + 80, screenCenterY + 50, 'NO')
@@ -632,12 +588,22 @@ export class MainScene extends Scene {
 
         this.exitMenuContent = this.add.group([x, y, a, b])
 
+        if (this.sceneData.gameType === 3) {
+            const end = this.add.text(screenCenterX, screenCenterY + 125, 'END MATCH & RETURN TO MENU', {
+                fontFamily: 'Arial', fontSize: 26, fontStyle: 'bold', color: '#f0c3ad',
+                backgroundColor: '#26343c', padding: {x: 20, y: 14},
+            }).setOrigin(.5).setDepth(130).setInteractive({useHandCursor: true})
+            end.on('pointerdown', () => leaveOnlineMatch())
+            this.exitMenuContent.add(end)
+        }
+
         a.once('pointerdown', () => {
             this.sound.play('click', {volume: 0.3})
 
             const exitGame = () => {
                 if (this.sceneData.gameType === 3) {
-                    window.socket.emit('leaveRoom', {})
+                    parkOnlineMatch()
+                    return
                 }
                 this.scene.start('scene-1')                
             }

@@ -1,263 +1,170 @@
-import Phaser, { Time } from "phaser"
-import { socket } from "../socket"
-import { weaponArray } from "../weapons/array"
+import { socket } from '../socket';
+import { weaponArray } from '../weapons/array';
+import { fitWeaponName, weaponIconTexture } from '../weapons/expansion/presentation';
 
 export class ScrollList {
-    /**
-     * @param {Phaser.Scene} scene 
-     * @param {Phaser.GameObjects.Text} selected 
-     */
     constructor(scene, selected, selectedDisplay, weaponLogo) {
-        this.scene = scene
-        this.selected = selected
-        this.selectedDisplay = selectedDisplay
-
-        this.scrollBox = null
-        this.scrollBackground = null
-        this.scrollTiles = null
-        this.scrollList = null
-        this.activeItem = null
-        this.toHide = false
-        this.toShow = false
-        this.visible = false
-        this.scrollStartPos = null;
-        this.scrollCurrentPos = null;
-        this.scrollEndPos = null;
-        this.weaponLogo = weaponLogo
-
-        this.tileHeight = 0
-        this.tileWidth = 0
-
-        this.x = 0
-        this.y = 0
-
-        this.logoCanvas = null
-
-        this.sw = this.scene.renderer.width
-        this.sh = this.scene.renderer.height
-
-        //this.create()
+        Object.assign(this, {scene, selected, selectedDisplay, weaponLogo});
+        this.scrollBox = null;
+        this.scrollBackground = null;
+        this.scrollList = null;
+        this.tileHeight = 40;
+        this.tileWidth = 0;
+        this.visible = false;
+        this.toShow = false;
+        this.toHide = false;
+        this.activeItem = null;
+        this.weapons = [];
+        this.rows = [];
+        this.offset = 0;
+        this.drag = null;
+        this.skipRelease = false;
     }
-
-
 
     create = () => {
-        
-        this.tileWidth = this.scrollBackground.width
+        this.tileWidth = this.scrollBackground.width;
+        this.x = this.scrollBackground.parentContainer.x + this.scrollBackground.x;
+        this.y = this.scrollBackground.parentContainer.y + this.scrollBackground.y;
+        this.scrollList = this.scene.add.group();
+        this.maskGraphics = this.scene.make.graphics({x: 0, y: 0, add: false});
+        this.maskGraphics.fillRect(this.x - this.tileWidth / 2, this.y - this.scrollBackground.height / 2, this.tileWidth, this.scrollBackground.height);
+        this.mask = this.maskGraphics.createGeometryMask();
+        const poolSize = Math.ceil(this.scrollBackground.height / this.tileHeight) + 2;
+        for (let index = 0; index < poolSize; index++) {
+            const row = this.scene.add.container(this.x, this.y).setDepth(32).setMask(this.mask);
+            const icon = this.scene.add.image(-this.tileWidth / 2 + 6, 0, weaponIconTexture(this.scene, weaponArray[0])).setOrigin(0, .5);
+            const text = this.scene.add.text(-this.tileWidth / 2 + this.tileHeight, 0, '', {fontFamily: 'Arial', fontSize: 17, color: '#d4e0d2'}).setOrigin(0, .5);
+            row.add([icon, text]);
+            Object.assign(row, {weaponIcon: icon, weaponText: text, weaponIndex: -1});
+            this.scrollList.add(row);
+            this.rows.push(row);
+        }
 
-        this.x = this.scrollBackground.parentContainer.x + this.scrollBackground.x
-        this.y = this.scrollBackground.parentContainer.y + this.scrollBackground.y
-
-        this.scrollList = this.scene.add.group()
-
-        const releasePointer = () => {
-            if (this.visible === true ) {
-                if (this.activeItem !== null) {
-                    this.scene.sound.play('click', {volume: 0.3})
-                    this.setActive(this.activeItem)
-                    this.hide()
-                    this.activeItem = null
+        this.openHandler = () => {
+            if (this.scene.HUD.mouseLocked || !this.weapons.length) return;
+            this.scene.HUD.mouseLocked = true;
+            this.scene.hideTurnPointer();
+            this.scene.sound.play('click', {volume: .3});
+            this.skipRelease = true;
+            this.offset = this.clampOffset((this.currentTank()?.selectedWeapon || 0) * this.tileHeight);
+            this.show();
+        };
+        this.selectedDisplay.setInteractive().on('pointerdown', this.openHandler);
+        this.pointerDown = pointer => {
+            if (!this.visible) return;
+            this.drag = {startY: pointer.y, offset: this.offset, distance: 0};
+        };
+        this.pointerMove = pointer => {
+            if (!this.visible || !this.drag || !pointer.isDown) return;
+            const delta = pointer.y - this.drag.startY;
+            this.drag.distance = Math.max(this.drag.distance, Math.abs(delta));
+            this.offset = this.clampOffset(this.drag.offset - delta);
+            this.renderRows();
+        };
+        this.pointerUp = pointer => {
+            if (!this.visible) return;
+            if (this.skipRelease) { this.skipRelease = false; this.drag = null; return; }
+            const inside = pointer.x >= this.x - this.tileWidth / 2 && pointer.x <= this.x + this.tileWidth / 2
+                && pointer.y >= this.y - this.scrollBackground.height / 2 && pointer.y <= this.y + this.scrollBackground.height / 2;
+            if (!this.drag || this.drag.distance < 6) {
+                if (inside) {
+                    const index = Math.round((pointer.y - this.y + this.offset) / this.tileHeight);
+                    if (index >= 0 && index < this.weapons.length) this.setActive(index);
                 }
-                this.scene.HUD.mouseLocked = false
-                this.scene.input.off('pointerdown', scrollStart)
-                //this.scrollBox.off('pointerdown', scrollStart)
-                this.scene.input.off('pointerup', scrollEnd)
+                this.hide();
             }
-        }
-
-        var initialScroll; 
-
-        const scrollStart = () => {
-            this.scrollStartPos = this.scene.input.activePointer.position.clone()
-            this.scrollCurrentPos = this.scrollStartPos.clone()
-            this.scene.input.on('pointerup', scrollEnd)
-        }
-
-        const scrollEnd = () => {
-            this.scrollCurrentPos = null
-            if (initialScroll === true) {
-                initialScroll = false;
-                return;
-            }
-            this.scrollEndPos = this.scene.input.activePointer.position.clone()
-            
-            if (this.scrollStartPos.clone().subtract(this.scrollEndPos).length() < 2) {
-                releasePointer()
-            }
-            this.scene.input.off('pointerup', scrollEnd)
-        }
-        
-        this.selectedDisplay.setInteractive()
-        this.selectedDisplay.on('pointerdown', () => {
-            if (this.scene.HUD.mouseLocked === true) return
-            this.scene.HUD.mouseLocked = true
-
-            this.scene.sound.play('click', {volume: 0.3})
-            this.scene.hideTurnPointer()
-            //this.scene.input.mouse.requestPointerLock()
-            this.toShow = true
-            initialScroll = true;
-            this.scene.input.on('pointerdown', scrollStart)
-            //this.scrollBox.on('pointerdown', scrollStart)
-        })
-
-
-        this.scrollBox.setInteractive()
-
-        socket.on('opponentWeaponChange', ({index}) => {
-            var tank = this.scene.activeTank === 1 ? this.scene.tank1 : this.scene.tank2
-            if (tank.active && tank === this.scene.tank2) {
-                this.setActive(index)
-            }
-        })
+            this.drag = null;
+        };
+        this.wheel = (pointer, objects, dx, dy) => {
+            if (!this.visible) return;
+            this.offset = this.clampOffset(this.offset + dy * .45);
+            this.renderRows();
+        };
+        this.opponentChange = ({index}) => {
+            if(this.scene.sceneData.gameType!==3)return
+            const tank = this.currentTank();
+            if (tank?.active && tank === this.scene.tank2) this.setActive(index);
+        };
+        this.scene.input.on('pointerdown', this.pointerDown);
+        this.scene.input.on('pointermove', this.pointerMove);
+        this.scene.input.on('pointerup', this.pointerUp);
+        this.scene.input.on('wheel', this.wheel);
+        socket.on('opponentWeaponChange', this.opponentChange);
+        this.scene.events.once('shutdown', this.destroy);
+        this.hide();
     }
 
+    currentTank = () => this.scene.activeTank === 2 ? this.scene.tank2 : this.scene.tank1;
+    clampOffset = offset => Math.max(0, Math.min(offset, Math.max(0, this.weapons.length - 1) * this.tileHeight));
 
-
-    setActive = (index) => {
-        var tank = this.scene.activeTank === 1 ? this.scene.tank1 : this.scene.tank2
-        tank.selectedWeapon = index
-        this.selected.setText(tank.weapons[tank.selectedWeapon]?.name)
-        
-        if (this.scene.sceneData.gameType === 3 && tank === this.scene.tank1 && tank.active) {
-            socket.emit('weaponChange', {index})
+    setActive = index => {
+        const tank = this.currentTank();
+        const item = tank?.weapons?.[index];
+        if (!item || !weaponArray[item.id]) {
+            if (!tank?.weapons?.length) { this.selected.setText('No weapons'); this.weaponLogo.setVisible(false); }
+            return;
         }
-
-        var key = Math.random().toString(32).slice(3,7)
-        var logoCanvas = weaponArray[tank.weapons[tank.selectedWeapon].id].logoCanvas
-        if (this.scene.textures.exists(key)) this.scene.textures.remove(key)
-        this.scene.textures.addCanvas(key, logoCanvas)
-        this.weaponLogo.setTexture(key)
+        tank.selectedWeapon = index;
+        this.selected.setText(item.name);
+        fitWeaponName(this.selected, this.selected.getData('maxWidth') || 145, this.scene.game.device.os.desktop ? 18 : 24);
+        this.weaponLogo.setTexture(weaponIconTexture(this.scene, weaponArray[item.id])).setVisible(true);
+        this.weaponLogo.setDisplaySize(this.tileHeight * .72, this.tileHeight * .72);
+        this.activeItem = index;
+        if (this.scene.sceneData.gameType === 3 && tank === this.scene.tank1 && tank.active) socket.emit('weaponChange', {index});
+        this.renderRows();
     }
 
+    reset = tank => {
+        this.weapons = tank.weapons;
+        this.offset = this.clampOffset((tank.selectedWeapon || 0) * this.tileHeight);
+        this.hide();
+        this.setActive(tank.selectedWeapon);
+        this.renderRows();
+    }
 
-
-    reset = (tank) => {
-        var container, logoCanvas, txt, key, weaponLogo, margin, name;
-        var weapons = tank.weapons
-        this.scrollList.clear(true, true)
-        //this.scrollTiles.clear(true, true)
-
-        this.toHide = true
-
-        this.selected.setText(weapons[tank.selectedWeapon]?.name)
-
-        weapons.forEach((weapon, index) => {
-            var w = this.tileWidth
-            container = this.scene.add.container(this.x, this.y)
-            key = Math.random().toString(32).slice(3,7)
-            logoCanvas = weaponArray[weapon.id].logoCanvas
-            if (this.scene.textures.exists(key)) this.scene.textures.remove(key)
-            this.scene.textures.addCanvas(key, logoCanvas)
-            margin = (this.tileHeight - logoCanvas.height * ((this.tileHeight/logoCanvas.height) * 0.9))/2
-            weaponLogo = this.scene.add.image(-w/2 + margin, 0, key)
-            weaponLogo.setOrigin(0, 0.5).setScale(this.tileHeight/weaponLogo.height * 0.9, this.tileHeight/weaponLogo.height * 0.9)
-
-            var textWidth = this.tileWidth - weaponLogo.width + margin * 2
-            name = this.scene.add.text(-this.tileWidth/2 + weaponLogo.width + margin * 2 + textWidth/2, 0, weapon.name).setFont('18px Geneva')
-            if (!this.scene.game.device.os.desktop) {
-                name.setFontSize(26) 
-            }
-            name.setOrigin(0.5)
-
-            container.add(weaponLogo)
-            container.add(name)
-            container.setData('textContent', name)
-
-            this.scrollList.add(container)
-
-            var g = this.scene.add.graphics()
-            var gX = this.scrollBackground.parentContainer.x + this.scrollBackground.x
-            var gY = this.scrollBackground.parentContainer.y + this.scrollBackground.y
-            g.fillRect(gX - this.tileWidth/2, gY - this.scrollBackground.height/2, this.tileWidth, this.scrollBackground.height)
-            var mask = new Phaser.Display.Masks.GeometryMask(this.scene, g)
-            container.setMask(mask)
-            
-            //container.setInteractive(new Phaser.Geom.Rectangle(this.x - this.tileWidth/2, this.y - this.tileHeight/2, this.tileWidth, this.tileHeight))    
+    renderRows = () => {
+        const first = Math.max(0, Math.floor((this.offset - this.scrollBackground.height / 2) / this.tileHeight) - 1);
+        this.rows.forEach((row, poolIndex) => {
+            const index = first + poolIndex;
+            const weapon = this.weapons[index];
+            if (!weapon) { row.setVisible(false); row.weaponIndex = -1; return; }
+            row.setPosition(this.x, this.y + index * this.tileHeight - this.offset).setVisible(this.visible);
+            row.weaponIndex = index;
+            row.weaponIcon.setTexture(weaponIconTexture(this.scene, weaponArray[weapon.id])).setDisplaySize(this.tileHeight * .72, this.tileHeight * .72);
+            row.weaponText.setText(weapon.name).setColor(index === this.currentTank()?.selectedWeapon ? '#f4ce9c' : '#c8dcd1');
+            fitWeaponName(row.weaponText, this.tileWidth - this.tileHeight - 10, this.scene.game.device.os.desktop ? 17 : 23);
         });
-
-        // this.scrollList.setY(this.sh * 5/6 - tank.selectedWeapon * this.tileHeight, this.tileHeight)
-        // this.scrollTiles.setY(this.sh * 5/6 - tank.selectedWeapon * this.tileHeight, this.tileHeight)
-
-        this.scrollList.setDepth(32)
-        this.setActive(tank.selectedWeapon)
-
-
-        var y = this.y - (tank.selectedWeapon) * this.tileHeight
-        this.scrollList.setY(y, this.tileHeight)
-        //this.scrollTiles.setDepth(30)
     }
-
-
 
     hide = () => {
-        this.scrollList.setVisible(false)
-        this.scrollBox.setVisible(false)
-        //this.scrollTiles.setVisible(false)
-        this.scrollBackground.setVisible(false)
-        this.visible = false
+        this.visible = false;
+        this.scrollList?.setVisible(false);
+        this.scrollBox?.setVisible(false);
+        this.scrollBackground?.setVisible(false);
+        this.drag = null;
+        if (this.scene.HUD) this.scene.HUD.mouseLocked = false;
     }
-
-
 
     show = () => {
-        this.scrollBox.setVisible(true)
-        this.scrollList.setVisible(true)
-        this.scrollBackground.setVisible(true)
-        //this.scrollTiles.setVisible(true)
-        this.visible = true
+        this.visible = true;
+        this.scrollBox.setVisible(true);
+        this.scrollBackground.setVisible(true);
+        this.renderRows();
     }
 
-
-
     update = () => {
-        if (this.visible) {
-            this.scrollList.children.each((child, index) => {
-                var x = child.x
-                var y = child.y
-                var centreX = this.x
-                var centreY = this.y
-                var dist = Math.sqrt( Math.pow(x - centreX, 2) + Math.pow(y - centreY, 2) )
-                if (dist < this.tileHeight/2) {
-                    child.getData('textContent').setColor('yellow')
-                    this.activeItem = index
-                }
-                else {
-                    child.getData('textContent').setColor('white')
-                }
-            })
+        if (this.toHide) { this.hide(); this.toHide = false; }
+        if (this.toShow) { this.show(); this.toShow = false; }
+    }
 
-            //var curr = this.scene.input.mousePointer
-            //var prev = this.scene.input.mousePointer.prev ? this.scene.input.mousePointer.prev : this.scene.input.mousePointer.prevPosition
-            //var delY = (curr.y - prev.y)/2
-
-            //if (this.scene.game.input.)
-            this.scrollList.incY(-this.scene.input.activePointer.deltaY)
-
-            if (this.scrollCurrentPos !== null && this.scene.input.activePointer.isDown) {
-                this.scrollList.incY(this.scene.input.activePointer.position.clone().subtract(this.scrollCurrentPos).y)
-                this.scrollCurrentPos = this.scene.input.activePointer.position.clone()
-            }
-            //this.scrollTiles.incY(this.scene.input.mousePointer.movementY)
-
-            this.scrollList.setY(Math.min(this.scrollList.getChildren()[0].y, this.y), this.tileHeight)
-            //this.scrollTiles.setY(Math.min(this.scrollTiles.getChildren()[0].y, this.y), this.tileHeight)
-
-            this.scrollList.setY(Math.max(this.scrollList.getChildren()[0].y, this.y - (this.scrollList.getLength() - 1) * this.tileHeight), this.tileHeight)
-            //this.scrollTiles.setY(Math.max(this.scrollTiles.getChildren()[0].y, this.y - (this.scrollTiles.getLength() - 1) * this.tileHeight), this.tileHeight)
-        }
-
-        else if (this.visible === true) {
-            this.hide()
-        }
-
-        if (this.toHide) {
-            this.hide()
-            this.toHide = false
-        }
-        if (this.toShow) {
-            this.show()
-            this.toShow = false
-        }
+    destroy = () => {
+        socket.off('opponentWeaponChange', this.opponentChange);
+        this.scene.input.off('pointerdown', this.pointerDown);
+        this.scene.input.off('pointermove', this.pointerMove);
+        this.scene.input.off('pointerup', this.pointerUp);
+        this.scene.input.off('wheel', this.wheel);
+        this.mask?.destroy();
+        this.maskGraphics?.destroy();
+        this.rows = [];
     }
 }

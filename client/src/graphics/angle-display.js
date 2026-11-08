@@ -1,3 +1,4 @@
+import { drawPanel } from './panel';
 import { HUD } from "../classes/HUD"
 import Phaser from "phaser"
 
@@ -6,21 +7,7 @@ import Phaser from "phaser"
  */
 
 const drawAngleFrame = (ctx, width, height, scene) => {
-    ctx.fillStyle = 'rgba(200,200,200,1)'
-    ctx.moveTo(0, height * 2/3)
-    ctx.ellipse(width/2, height * 2/3, width/2 + 1, width/2.5, 0, -Math.PI, 0)
-    //ctx.arcTo(width/2, 0, width, height * 2/3, 75)
-    ctx.closePath()
-    ctx.fill()
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.fillRect(0, height * 2/3, width, height/3)
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.textAlign = 'center'
-    ctx.font = '500 18px Arial'
-    if (!scene.game.device.os.desktop){
-        ctx.font = '500 26px Arial'
-    }
-    ctx.fillText('Angle', width/2, height * 1/2)
+    drawPanel(ctx, width, height, 'Elevation', 38);
 }
 
 
@@ -66,20 +53,9 @@ const drawAngleFrame = (ctx, width, height, scene) => {
  */
 
 const drawArrow = (ctx, width, height, angle, scene) => {
-    var txt =  String.fromCharCode(0x25B6)
-    //var strokeThickness = 4
-    if (angle === Math.PI) txt = String.fromCharCode(0x25C0)
-    ctx.fillStyle = 'rgba(200,200,200,1)'
-    ctx.strokeStyle = 'rgba(160,160,160,1)'
-
-    ctx.fillRect(0, 0, width, height)
-    ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.font = '500 16px Arial'
-    if (!scene.game.device.os.desktop){
-        ctx.font = '500 26px Arial'
-    }
-    ctx.fillText(txt, width/2, height * 3/4)
+    drawPanel(ctx,width,height);
+    ctx.fillStyle='#c8d9cd'; ctx.textAlign='center'; ctx.font='18px Arial';
+    ctx.fillText(angle === Math.PI ? '‹' : '›',width/2,height*.72);
 }
 
 
@@ -123,6 +99,7 @@ export const createAngleDisplay = (hud) => {
     }
 
     angleBtn.on('pointerdown', (e) => {
+        if (hud.mobileAim) { hud.mobileAim.open(); return }
         if (hud.mouseLocked === true) return
         if (hud.crossAir.getData('toShow') === true) return
         hud.mouseLocked = true

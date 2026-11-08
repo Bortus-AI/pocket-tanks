@@ -1,3 +1,4 @@
+import { addBattlefield } from '../../graphics/battlefield';
 import { Scene, GameObjects, BlendModes, Textures } from 'phaser';
 import WebFontFile from '../../classes/WebFontFile';
 import Phaser from 'phaser';
@@ -23,6 +24,8 @@ export class LoadingScene extends Scene {
 
 
     create = () => {
+        addBattlefield(this, 'loading-landscape')
+        this.add.rectangle(600,400,1200,800,0x0a202b,.5)
         this.sound.stopAll()
 
         window.game.sound.mute = false
@@ -68,7 +71,8 @@ export class LoadingScene extends Scene {
         var progressBar = this.add.graphics();
         var progressBox = this.add.graphics();
 
-        this.add.image(w/2, h * 4/10, 'logo').setOrigin(0.5, 0.5)
+        this.add.text(w/2,h*.33,'POCKET TANKS',{fontFamily:'Arial Black, Arial',fontStyle:'bold',fontSize:72,color:'#f0ead8'}).setOrigin(.5)
+        this.add.text(w/2,h*.44,'ARTILLERY  /  REMASTERED',{fontFamily:'Arial',fontSize:17,color:'#b4cabe',letterSpacing:5}).setOrigin(.5)
 
         var loadingText = this.make.text({x: w / 2, y: h * 4/5, text: 'Loading',
             style: {
@@ -81,12 +85,12 @@ export class LoadingScene extends Scene {
         var beginbtn = this.addBeginButton()
         this.addScreenResize()
 
-        progressBox.lineStyle(2, 0xcccccc)
+        progressBox.lineStyle(2, 0x638e8c)
         progressBox.strokeRect(w/2 - 160, h * 4/5 + 15, 320, 40);
 
         this.load.on('progress', function (value) {
             progressBar.clear();
-            progressBar.fillStyle(0xeeeeee, 1);
+            progressBar.fillStyle(0xe7b17b, 1);
             progressBar.fillRect(w/2 - 150, h * 4/5 + 20, 300 * value, 30);
         });
     
@@ -135,55 +139,7 @@ export class LoadingScene extends Scene {
 
 
 
-    addScreenResize = () =>{
-        var w = this.renderer.width
-        
-        var resizeScreenContainer = this.add.container(w - 30, 30)
-        var resizeScreenText = this.add.text(0, 0, 'Fullscreen').setOrigin(1, 0).setFontFamily('Verdana').setFontSize(18).setPadding(0,0,10,0).setColor('rgba(240,240,240,1)')
-        var expandScreenIcon = this.add.image(0, 0, 'expand').setOrigin(1, 0).setDisplaySize(20, 20).setAlpha(0.8)
-        var compressScreenIcon = this.add.image(0, 0, 'compress').setOrigin(1, 0).setDisplaySize(20, 20).setVisible(false).setAlpha(0.8)
-
-        if (!this.game.device.os.desktop) {
-            resizeScreenText.setFontSize(30)
-            expandScreenIcon.setDisplaySize(30, 30)
-            compressScreenIcon.setDisplaySize(30, 30)
-        }
-
-        resizeScreenText.setX(resizeScreenText.x - expandScreenIcon.displayWidth)
-        resizeScreenContainer.add([resizeScreenText, expandScreenIcon, compressScreenIcon])
-
-        const onClickResize = () => {
-            if (this.game.scale.isFullscreen === true) {
-                this.game.scale.stopFullscreen()
-            }
-            else {
-                this.game.scale.startFullscreen()
-            }
-        }
-
-        resizeScreenText.setInteractive()
-        expandScreenIcon.setInteractive()
-        compressScreenIcon.setInteractive()
-        resizeScreenText.on('pointerup', onClickResize)
-        expandScreenIcon.on('pointerup', onClickResize)
-        compressScreenIcon.on('pointerup', onClickResize)
-
-        this.checkResize = () => {
-            if (this.game.scale.isFullscreen === false) {
-                resizeScreenText.setText('Fullscreen')
-                compressScreenIcon.setVisible(false)
-                expandScreenIcon.setVisible(true)
-            }
-            else {
-                resizeScreenText.setText('Minimise')
-                compressScreenIcon.setVisible(true)
-                expandScreenIcon.setVisible(false)
-            }
-        }
-    }
-
-
-
+    addScreenResize = () => {}
 
     update = () => {
         if (this.checkResize !== null) {

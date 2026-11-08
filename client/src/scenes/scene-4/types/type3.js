@@ -1,3 +1,4 @@
+import { clearOnlineSceneListeners, isOnlineHost } from '../../../socket/session';
 import { Display } from "phaser";
 
 /**
@@ -7,7 +8,8 @@ import { Display } from "phaser";
 export const type3 = (scene) => {
     const totalWeapons = 4
     const socket = window.socket
-    socket.removeAllListeners()
+    clearOnlineSceneListeners(socket)
+    scene.events.once('shutdown', () => clearOnlineSceneListeners(socket))
 
     //console.log(scene.roomList)
 
@@ -120,10 +122,10 @@ export const type3 = (scene) => {
     }
 
     socket.on('startPick', ({host, player}) => {
-        if (socket.id === host.socketId)
-            scene.scene.start('scene-5', {gameType: 3, player1: scene.player1, player2: player, hostId: host.socketId})
+        if (isOnlineHost(socket, host.playerId || host.socketId))
+            scene.scene.start('scene-5', {gameType: 3, player1: scene.player1, player2: player, hostId: host.playerId || host.socketId, onlineRole: 'host'})
         else
-            scene.scene.start('scene-5', {gameType: 3, player1: scene.player1, player2: host, hostId: host.socketId})
+            scene.scene.start('scene-5', {gameType: 3, player1: scene.player1, player2: host, hostId: host.playerId || host.socketId, onlineRole: 'player'})
     })
 
     const g = scene.add.text(screenCenterX, 700, 'CREATE ROOM').setFontSize(50);

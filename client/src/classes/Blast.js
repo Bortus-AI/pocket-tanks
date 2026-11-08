@@ -1,3 +1,7 @@
+import { addImpact } from '../graphics/impact';
+import { emitWeaponImpact } from '../graphics/weapon-fx';
+import { legacyWeaponStyle } from '../graphics/legacy-weapon-style';
+import { applyLegacyAftermath } from '../weapons/expansion/unique-mechanics';
 import Phaser from "phaser"
 
 export class Blast {
@@ -16,6 +20,10 @@ export class Blast {
         this.scene = scene
         this.count = 0
         this.blastType = blastType
+        const tank = scene.activeTank === 2 ? scene.tank2 : scene.tank1
+        const activeWeapon = tank?.turret?.activeWeapon
+        this.originalWeapon = activeWeapon?.id < 30 ? activeWeapon : null
+        this.aftermathApplied = false
         
         this.terrain = scene.terrain
         this.maxRadius = Math.max(radius, 1)
@@ -40,6 +48,12 @@ export class Blast {
         this.soundConfig = data.soundConfig
 
         this.init()
+        // Keep the old blast mask and its timing for terrain/knockback, but let
+        // the compositor draw fire, debris, smoke, shards, and energy instead of
+        // displaying the old expanding gradient ring.
+        this.modernPresentation = !!emitWeaponImpact(scene, x, y, radius, legacyWeaponStyle(scene, blastType))
+        if (this.modernPresentation) this.image.setVisible(false)
+        else addImpact(scene, x, y, radius)
     }
 
 
@@ -78,6 +92,10 @@ export class Blast {
         }
         if (this.animationType === 3) {
             this.updateType3()
+        }
+        if (this.toRemove && !this.aftermathApplied && this.originalWeapon) {
+            this.aftermathApplied = true
+            applyLegacyAftermath(this.originalWeapon, {x:this.x,y:this.y,radius:this.maxRadius})
         }
     }
 
@@ -158,9 +176,11 @@ export class Blast {
         ctx.closePath()
         ctx.fill()
 
+        this.innerRadius = Math.max(this.outerRadius - this.thickness, 0)
+        if (this.modernPresentation) return
+
         var canvas = this.canvas
         var ctx2 = canvas.getContext('2d')
-        this.innerRadius = Math.max(this.outerRadius - this.thickness, 0)
         ctx2.clearRect(0, 0, canvas.width, canvas.height)
 
         if (this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
@@ -223,6 +243,11 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+
+        if (this.modernPresentation) {
+            if (this.circles.length) this.innerRadius = Math.max(this.outerRadius - this.thickness * this.circles.length, 0)
+            return
+        }
 
         var canvas = this.canvas
         var ctx2 = canvas.getContext('2d')
@@ -304,6 +329,12 @@ export class Blast {
         ctx.closePath()
         ctx.fill()
         //this.terrain.update()
+
+        if (this.modernPresentation) {
+            if (this.circles.length) this.innerRadius = Math.max(this.outerRadius - this.thickness * this.circles.length, 0)
+            if (this.outerRadius >= this.maxRadius) this.variableRadius--
+            return
+        }
 
         var canvas = this.canvas
         var ctx2 = canvas.getContext('2d')

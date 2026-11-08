@@ -1,3 +1,4 @@
+import { drawPanel } from './panel';
 import { HUD } from "../classes/HUD"
 
 /**
@@ -5,27 +6,13 @@ import { HUD } from "../classes/HUD"
  */
 
 const drawPowerFrame = (ctx, width, height, scene) => {
-    ctx.fillStyle = 'rgba(200,200,200,1)'
-    ctx.fillRect(0, 0, width, height/2)
-    //ctx.fillStyle = 'rgba(0,0,0,1)'
-    //ctx.fillRect(0, height/2, width, height)
-    ctx.moveTo(0, height/2)
-    ctx.ellipse(width/5, height/2, width/5, width/7, 0, 0, Math.PI)
-    ctx.fill()
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.fillRect(width * 2/5, height/2, width * 3/5, 30)
-    ctx.textAlign = 'center'
-    ctx.font = '500 18px Arial'
-    if (!scene.game.device.os.desktop){
-        ctx.font = '500 26px Arial'
-    }
-    ctx.fillText('Power', width/5, height * 6/9)
+    drawPanel(ctx, width, height, '', 0);
 }
 
 const drawPowerMeter = (ctx, width, height, percentage = 0, color) => {
-    ctx.fillStyle = 'rgba(0,0,0,1)'
+    ctx.fillStyle = '#0d2029'
     ctx.fillRect(0, 0, width, height)
-    ctx.fillStyle = 'rgba(230,0,0,1)'
+    ctx.fillStyle = '#77c8b7'
     if (color) {
         ctx.fillStyle = color
     }
@@ -38,20 +25,9 @@ const drawPowerMeter = (ctx, width, height, percentage = 0, color) => {
  */
 
 const drawArrow = (ctx, width, height, angle, scene) => {
-    var txt =  String.fromCharCode(0x25B6)
-    //var strokeThickness = 4
-    if (angle === Math.PI) txt = String.fromCharCode(0x25C0)
-    ctx.fillStyle = 'rgba(200,200,200,1)'
-    ctx.strokeStyle = 'rgba(160,160,160,1)'
-
-    ctx.fillRect(0, 0, width, height)
-    ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.font = '16px Arial'
-    if (!scene.game.device.os.desktop){
-        ctx.font = '26px Arial'
-    }
-    ctx.fillText(txt, width/2, height * 3/4)
+    drawPanel(ctx,width,height);
+    ctx.fillStyle='#c8d9cd'; ctx.textAlign='center'; ctx.font='18px Arial';
+    ctx.fillText(angle === Math.PI ? '‹' : '›',width/2,height*.72);
 }
 
 
@@ -65,6 +41,7 @@ export const createPowerDisplay = (hud) => {
 
     var [powerBtn, powerDisplayText, powerMeter, powerLeftBtn, powerRightBtn] = drawPowerDisplay(hud.scene, hud.width * 3/4, hud.height * 10.8/12, w, h)
 
+    hud.scene.add.text(hud.width * 3/4, hud.height * 10.8/12 - 58, 'POWER',{fontFamily:'Arial',fontSize:13,color:'#bdcec5'}).setOrigin(.5).setDepth(6)
     hud.powerDisplayText = powerDisplayText
     hud.powerMeter = powerMeter
     var powerSelectTimer = Date.now()
@@ -85,6 +62,7 @@ export const createPowerDisplay = (hud) => {
     }
 
     powerBtn.on('pointerdown', (e) => {
+        if (hud.mobileAim) { hud.mobileAim.open(); return }
         if (hud.mouseLocked === true) return
         if (powerBtn.getData('active') === true) return
         hud.mouseLocked = true
@@ -138,7 +116,7 @@ export const createPowerDisplay = (hud) => {
 
         var canvas = powerMeter.texture.canvas
         var ctx = canvas.getContext('2d')
-        var color = 'rgba(230,0,0,1)'
+        var color = '#77c8b7'
 
         if (hud.scene.activeTank === 1) {
             if (powerBtn.getData('active') === true) {

@@ -23,6 +23,7 @@ export default class WebFontFile extends Phaser.Loader.File
 	load()
 	{
 		const config = {
+            inactive: () => { this.loader.nextFile(this, true) },
 			active: () => {
 				this.loader.nextFile(this, true)
 			}

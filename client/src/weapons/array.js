@@ -1,3 +1,8 @@
+import { classicAdaptations, earlyClassicAdaptations } from './expansion/classics';
+import { laterClassicAdaptations, modernClassicAdaptations } from './expansion/later-classics';
+import { makeClassicWeapon } from './expansion/classic-runtime';
+import { expansionCatalog } from './expansion/catalog';
+import { makeExpansionWeapon } from './expansion/runtime';
 import * as Allweapons from './packs/Standard/Standard'
 
 export const weaponArray = []
@@ -91,3 +96,16 @@ weaponArray[scattershot.id] = scattershot
 
 const cruiser = new Allweapons.cruiser()
 weaponArray[cruiser.id] = cruiser
+
+expansionCatalog.forEach(definition => { weaponArray[definition.id] = makeExpansionWeapon(definition); });
+
+const returningNames = new Set(weaponArray.map(weapon => weapon.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
+[classicAdaptations, earlyClassicAdaptations, laterClassicAdaptations, modernClassicAdaptations].forEach(pack => {
+    pack.forEach(definition => {
+        const key = definition.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (returningNames.has(key)) return;
+        returningNames.add(key);
+        const id = weaponArray.length;
+        weaponArray.push(makeClassicWeapon({...definition, id}));
+    });
+});

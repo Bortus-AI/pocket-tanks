@@ -14,8 +14,8 @@ export const type4 = (scene) => {
     scene.player2.weapons = []
 
     weaponArray.forEach((weapon) => {
-        scene.player1.weapons.push({id: weapon.id, name: weapon.name})  
-        scene.player2.weapons.push({id: weapon.id, name: weapon.name})
+        scene.player1.weapons.push({id: weapon.id, name: weapon.name, type: weapon.type})
+        scene.player2.weapons.push({id: weapon.id, name: weapon.name, type: weapon.type})
     })
 
     scene.scene.start('main-scene', {gameType: 4, player1: scene.player1, player2: scene.player2})

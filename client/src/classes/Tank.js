@@ -1,3 +1,7 @@
+import { acceptOnlineShot } from '../socket/session';
+import { chooseTankSpawn } from '../graphics/terrain-layouts';
+import { beginTacticalShot, tankState } from '../weapons/expansion/tactics';
+import { drawVehicle } from '../graphics/vehicle';
 import { GameObjects, Physics } from "phaser";
 import Phaser from "phaser";
 import { Turret } from "./Turret";
@@ -59,8 +63,6 @@ export class Tank extends GameObjects.Sprite {
 
     create = (tankColor, name) => {
         var ctx = this.canvas.getContext('2d')
-    
-        ctx.fillStyle = tankColor
         this.color = tankColor
         this.name = name
 
@@ -68,17 +70,14 @@ export class Tank extends GameObjects.Sprite {
 
         this.randomPos()
     
-        ctx.beginPath();
-        ctx.moveTo(this.canvas.width/6, this.canvas.height/2)
-        ctx.lineTo(0, this.canvas.height/4)
-        ctx.lineTo(this.canvas.width/6, this.canvas.height/4)
-        ctx.lineTo(this.canvas.width/4, 0)
-        ctx.lineTo(this.canvas.width * (3/4), 0)
-        ctx.lineTo(this.canvas.width * (5/6), this.canvas.height/4)
-        ctx.lineTo(this.canvas.width, this.canvas.height/4)
-        ctx.lineTo(this.canvas.width * (5/6), this.canvas.height/2)
-        ctx.closePath()
-        ctx.fill()
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.save();
+        // The physics anchor sits at the canvas midpoint; keep tracks above it.
+        ctx.translate(0, -1.2);
+        ctx.scale(1, .6);
+        drawVehicle(ctx, typeof tankColor === 'number' ? `#${tankColor.toString(16).padStart(6, '0')}` : tankColor);
+        ctx.restore();
+        this.scene.textures.get('tank' + this.id).refresh();
 
         //this.setBlendMode(Phaser.BlendModes.MULTIPLY)
         this.selectedWeapon = this.weapons.length >= 1 ? 0 : null
@@ -91,24 +90,19 @@ export class Tank extends GameObjects.Sprite {
         this.body.setSize(1,1)
         this.turret = new Turret(this.scene, this, this.id)
 
-        socket.on('opponentShoot', ({selectedWeapon, power, rotation, rotation1, rotation2, position1, position2}) => {
-            if (this.active === false) return
-            this.moving = false
-            this.leftSteps = 0
-            this.rightSteps = 0
-            this.scene.tank1.setPosition(position2.x, position2.y)
-            this.scene.tank1.setRotation(rotation2)
-            this.scene.tank2.setPosition(position1.x, position1.y)
-            this.scene.tank2.setRotation(rotation1)
+        // Socket handlers must leave with the sprite when a saved match is parked.
+        const onOnlineEvent = (event, handler) => {
+            socket.on(event, handler)
+            this.once('destroy', () => socket.off(event, handler))
+        }
 
-            this.selectedWeapon = selectedWeapon
-            this.setPower(power)
-            this.turret.setRelativeRotation(rotation)
-            this.scene.HUD.weaponScrollDisplay.reset(this)
-            this.shoot()
+        onOnlineEvent('opponentShoot', payload => {
+            if (this.scene?.sceneData?.gameType !== 3 || this !== this.scene.tank2) return
+            acceptOnlineShot(this.scene, payload)
         })
 
-        socket.on('opponentPowerChange', ({power}) => {
+        onOnlineEvent('opponentPowerChange', ({power}) => {
+            if(this.scene?.sceneData?.gameType!==3)return
             if (this.active && this === this.scene.tank2) {
                 this.aimPower = power
 
@@ -120,12 +114,14 @@ export class Tank extends GameObjects.Sprite {
             }
         })
         
-        socket.on('opponentStepLeft', () => {
+        onOnlineEvent('opponentStepLeft', () => {
+            if(this.scene?.sceneData?.gameType!==3)return
             if (this.active === false) return
             this.stepLeft()
         })
 
-        socket.on('opponentStepRight', () => {
+        onOnlineEvent('opponentStepRight', () => {
+            if(this.scene?.sceneData?.gameType!==3)return
             if (this.active === false) return
             this.stepRight()
         })
@@ -135,7 +131,7 @@ export class Tank extends GameObjects.Sprite {
             if (this.active && !this.moving && this.movesRemaining > 0) {
                 this.scene.sound.play('click', {volume: 0.3})
                 this.stepLeft()
-                window.socket.emit('stepLeft', {})
+                if(this.gameType===3)window.socket.emit('stepLeft', {})
             }
         })
 
@@ -144,7 +140,7 @@ export class Tank extends GameObjects.Sprite {
             if (this.active && !this.moving && this.movesRemaining > 0) {
                 this.scene.sound.play('click', {volume: 0.3})
                 this.stepRight()
-                window.socket.emit('stepRight', {})
+                if(this.gameType===3)window.socket.emit('stepRight', {})
             }
         })
 
@@ -184,21 +180,19 @@ export class Tank extends GameObjects.Sprite {
     
 
     randomPos = () => {
-        var initX = Math.ceil(Math.random() * this.terrain.width / 1.0)
-        var initY;
-        for (let y = 0; y < this.scene.terrain.height; y++) {
-            if (this.scene.terrain.getPixel(initX, y).alpha > 0) {
-                initY = y;
-                break;
-            }
+        const spawn = chooseTankSpawn(this.terrain.path, this.terrain.width, this.terrain.height, this.id)
+        const initX = spawn.x
+        let initY = spawn.y
+        // Read the live alpha mask, including its antialiased rim, once per tank.
+        // During online setup an empty mask is allowed until the host path arrives.
+        for (let y = 0; y < this.terrain.height; y++) {
+            if (this.terrain.getPixel(initX, y).alpha > 0) { initY = y; break; }
         }
         this.setPosition(initX, initY)
         this.prevPos.x = initX
         this.prevPos.y = initY
-        var rotation = this.terrain.getSlope(initX, initY)
-        if (rotation !== undefined) {
-            this.setRotation(rotation)
-        }
+        const rotation = this.terrain.path.length ? this.terrain.getSlope(initX, initY) : 0
+        if (Number.isFinite(rotation)) this.setRotation(rotation)
     }
 
 
@@ -380,6 +374,10 @@ export class Tank extends GameObjects.Sprite {
 
 
     stepLeft = () => {
+        const status = tankState(this)
+        if (status.frost > 0 && status.frostMoves >= 1) return
+        if (this.movesRemaining > 0 && status.frost > 0) status.frostMoves++
+
         if (this.movesRemaining > 0) {
             this.leftSteps = 80
             this.moving = true
@@ -392,6 +390,10 @@ export class Tank extends GameObjects.Sprite {
 
 
     stepRight = () => {
+        const status = tankState(this)
+        if (status.frost > 0 && status.frostMoves >= 1) return
+        if (this.movesRemaining > 0 && status.frost > 0) status.frostMoves++
+
         if (this.movesRemaining > 0) {
             this.rightSteps = 80
             this.moving = true
@@ -404,15 +406,16 @@ export class Tank extends GameObjects.Sprite {
 
 
     shoot = () => {
-        if (!this.active) return
+        if (!this.active || this.turret.activeWeapon || !this.weapons[this.selectedWeapon]) return false
         this.scene.hideTurnPointer()
-        
+        beginTacticalShot(this.scene, this)
         this.active = false
         this.turret.shoot(this.weapons[this.selectedWeapon]?.id)
         if (this.scene.sceneData.gameType !== 4) {
             this.weapons.splice(this.selectedWeapon, 1)
         }
         this.selectedWeapon = this.weapons.length >= 1 ? Math.min(this.selectedWeapon, this.weapons.length - 1) : null
+        return true
     }
 
 
@@ -464,6 +467,7 @@ export class Tank extends GameObjects.Sprite {
 
 
     autoAdjust = () => {
+        if (this.gameType === 3) return
         var oppTank = (this === this.scene.tank1) ? this.scene.tank2 : this.scene.tank1
         var diffX = this.body.x - oppTank.body.x
         var diffY = -(this.body.y - oppTank.body.y)

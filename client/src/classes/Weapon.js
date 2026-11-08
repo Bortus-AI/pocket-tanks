@@ -1,3 +1,7 @@
+import { splashScore } from '../weapons/expansion/tactics';
+import { createWeaponProjectile, emitWeaponMuzzle, getWeaponFX } from '../graphics/weapon-fx';
+import { legacyWeaponStyle } from '../graphics/legacy-weapon-style';
+import { legacyMechanicalRules } from '../weapons/expansion/unique-mechanics';
 import Phaser from "phaser";
 import { Turret } from "./Turret";
 import { weaponArray } from "../weapons/array";
@@ -14,19 +18,26 @@ export class Weapon {
 
         this.scene = scene
         this.id = id
+        this.mechanicalRules = id < 30 ? legacyMechanicalRules(id) : []
         this.tank = tank
         this.turret = this.tank.turret
         this.powerFactor = this.turret.powerFactor
         this.terrain = this.scene.terrain
-        this.weaponHandler = weaponArray[this.id]
+        const entry = weaponArray[this.id] || weaponArray[0]
+        this.weaponHandler = entry.createInstance ? entry.createInstance() : entry
         this.allowUpdate = false
+        this.legacyVisuals = new Map()
+        this.scene.events.once('shutdown', () => {
+            this.legacyVisuals.forEach(visual => visual.destroy())
+            this.legacyVisuals.clear()
+        })
         
         this.create()
 
-        setTimeout(() => {
+        this.scene.time.delayedCall(500, () => {
             this.shoot()
             this.allowUpdate = true
-        }, 500);
+        });
     }
 
 
@@ -45,8 +56,26 @@ export class Weapon {
 
 
     update = () => {
-        if (this.allowUpdate)
+        if (this.allowUpdate) {
             this.weaponHandler.update(this)
+            if (this.id < 30) {
+                // Several originals create secondary physics sprites directly
+                // instead of using defaultShoot (napalm, hail and fragment fans).
+                Object.values(this.weaponHandler).forEach(value => {
+                    const objects = Array.isArray(value) ? value : [value]
+                    objects.forEach(object => {
+                        if (object?.scene === this.scene && object.active && object.body?.velocity && object.canvas?.getContext &&
+                            object !== this.scene.tank1 && object !== this.scene.tank2 && object !== this.turret &&
+                            !/^(tank|turret|wall)/.test(object.texture?.key || '')) this.attachLegacyVisual(object, true)
+                    })
+                })
+            }
+            this.legacyVisuals.forEach((visual, object) => {
+                if (!object.scene || !object.active) {visual.destroy();this.legacyVisuals.delete(object);return}
+                visual.setPosition(object.x, object.y)
+                visual.setVisible?.(object.visible)
+            })
+        }
     }
 
 
@@ -72,10 +101,27 @@ export class Weapon {
         //obj.updateFromGameObject()
         obj.body.setSize(1,1)
         obj.body.preUpdate(false, 0)
+        if (this.attachLegacyVisual(obj)) emitWeaponMuzzle(this.scene,obj.x,obj.y,rotation,this.legacyVisualOptions(rotation))
         //obj.body.updateFromGameObject()
         //obj.body.center.x = obj.x
         //obj.body.center.y = obj.y
         //console.log(obj.body.center.x, obj.body.center.y)
+    }
+
+    legacyVisualOptions = (angle, small = false) => ({...legacyWeaponStyle(this.scene, this.id),
+        weaponId:this.id,weaponName:this.weaponHandler.name,semanticRules:this.mechanicalRules,angle,small})
+
+    attachLegacyVisual = (object, small = false) => {
+        if (this.id >= 30 || this.legacyVisuals.has(object)) return false
+        const fx = getWeaponFX(this.scene)
+        if (!fx || fx.projectiles?.size >= 128) return false
+        const angle = object.body?.velocity ? Math.atan2(object.body.velocity.y,object.body.velocity.x) : object.rotation
+        const visual = createWeaponProjectile(this.scene,object.x,object.y,this.legacyVisualOptions(angle,small))
+        this.legacyVisuals.set(object,visual)
+        // Keep the sprite's collision and logical visibility intact.
+        object.setAlpha(0)
+        object.once('destroy',()=>{visual.destroy();this.legacyVisuals.delete(object)})
+        return true
     }
 
 
@@ -155,6 +201,7 @@ export class Weapon {
 
 
     updateTail = (obj, factor, minimum, thickness, color, taper) => {
+        if (this.legacyVisuals.has(obj)) return
         var tailLength = obj.body.speed / factor + minimum
         //var tailLength = new Phaser.Math.Vector2(obj.velX, obj.velY).length() / factor + minimum
         tailLength = Math.floor(tailLength)
@@ -189,53 +236,9 @@ export class Weapon {
 
 
     defaultUpdateScore = (x, y, blastRadius, factor) => {
-        if (isNaN(factor)) return
+        if (!Number.isFinite(factor)) return
+        return splashScore(this, x, y, blastRadius, factor)
 
-        var tank1 = this.scene.tank1
-        var tank2 = this.scene.tank2
-
-        var hitTank1 = false
-        var hitTank2 = false
-
-        if (tank1.isPointInside(x, y)) {
-            hitTank1 = true
-        }
-        if (tank2.isPointInside(x, y)) {
-            hitTank2 = true
-        }
-
-        if (hitTank1 && tank1 === this.tank) {
-            this.tank.updateScore(-Math.floor(blastRadius * factor))
-        }
-        else if (hitTank1 && tank1 !== this.tank) {
-            this.tank.updateScore(Math.ceil(blastRadius * factor))
-        }
-        if (hitTank2 && tank2 === this.tank) {
-            this.tank.updateScore(-Math.floor(blastRadius * factor))
-        }
-        else if (hitTank2 && tank2 !== this.tank) {
-            this.tank.updateScore(Math.ceil(blastRadius * factor))
-        }
-
-        if (hitTank1 || hitTank2) return
-
-        var dist1 = Phaser.Math.Distance.Between(x, y, this.scene.tank1.centre.x, this.scene.tank1.centre.y)
-        var dist2 = Phaser.Math.Distance.Between(x, y, this.scene.tank2.centre.x, this.scene.tank2.centre.y)
-
-        if (tank1 === this.tank) {
-            var pointReduce = dist1 - blastRadius > 0 ? 0 : Math.ceil((blastRadius - dist1) * factor)
-            var pointIncrease = dist2 - blastRadius > 0 ? 0 : Math.ceil((blastRadius - dist2) * factor)
-            
-            this.tank.updateScore(pointIncrease)
-            this.tank.updateScore(-pointReduce)
-        }
-        else if (tank2 === this.tank) {
-            var pointReduce = dist2 - blastRadius > 0 ? 0 : Math.ceil((blastRadius - dist2) * factor)
-            var pointIncrease = dist1 - blastRadius > 0 ? 0 : Math.ceil((blastRadius - dist1) * factor)
-
-            this.tank.updateScore(pointIncrease)
-            this.tank.updateScore(-pointReduce)
-        }
     }
 
     

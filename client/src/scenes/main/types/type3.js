@@ -1,3 +1,5 @@
+import { clearOnlineSceneListeners, isOnlineHost, applyOnlineSnapshot, onlineSession } from '../../../socket/session';
+import { weaponArray } from '../../../weapons/array';
 import { Display } from "phaser"
 
 /**
@@ -5,8 +7,13 @@ import { Display } from "phaser"
 */
 
 export const type3 = (scene) => {
+    scene.onlineMatchId=onlineSession.matchId;
+    scene.onlineTurnNumber=Number(onlineSession.turn?.number)||0;
+    scene.onlineShotIds=new Set();scene.onlineShotId=null;
     const socket = window.socket
-    socket.removeAllListeners()
+    const roomId=onlineSession.roomId
+    clearOnlineSceneListeners(socket)
+    scene.events.once('shutdown', () => clearOnlineSceneListeners(socket))
 
     const screenCenterX = scene.cameras.main.worldView.x + scene.cameras.main.width / 2;
     const screenCenterY = scene.cameras.main.worldView.y + scene.cameras.main.height / 2;
@@ -15,6 +22,10 @@ export const type3 = (scene) => {
     var player2 = scene.sceneData.player2
     var hostId = scene.sceneData.hostId
     
+    if(scene.sceneData.draftIds){
+        player1.weapons=scene.sceneData.draftIds.own.map(id=>({id,name:weaponArray[id].name,type:weaponArray[id].type}))
+        player2.weapons=scene.sceneData.draftIds.other.map(id=>({id,name:weaponArray[id].name,type:weaponArray[id].type}))
+    }
     scene.tank1.weapons = player1.weapons
     scene.tank2.weapons = player2.weapons
     
@@ -22,7 +33,10 @@ export const type3 = (scene) => {
     scene.tank2.create(int2rgba(player2.color), player2.name)
 
 
-    if (socket.id === hostId) {
+    if (scene.sceneData.resumeSnapshot) {
+        applyOnlineSnapshot(scene,scene.sceneData.resumeSnapshot)
+    }
+    else if (isOnlineHost(socket,hostId)) {
         scene.terrain.create()
         scene.tank1.randomPos()
         scene.tank2.randomPos()
@@ -47,20 +61,17 @@ export const type3 = (scene) => {
         socket.emit('getTerrainPath', {})
     }
 
-    if (socket.id === hostId) {
-        scene.tank1.active = true
-        scene.activeTank = 1
-    }
-    else {
-        scene.tank2.active = true
-        scene.activeTank = 2
+    if (!scene.sceneData.resumeSnapshot) {
+        if (isOnlineHost(socket,hostId)) {scene.tank1.active=true;scene.activeTank=1}
+        else {scene.tank2.active=true;scene.activeTank=2}
     }
 
     socket.once('playAgain', () => {
         scene.sound.stopByKey('winner')
 
         const restartGame = () => {
-            scene.scene.start('scene-5', scene.sceneData)
+            const {resumeSnapshot,resumeWithoutSnapshot,resumePendingShot,draftIds,...nextGame}=scene.sceneData
+            scene.scene.start('scene-5', nextGame)
         }
 
         if (window.sdk === 'crazygames') {
@@ -108,7 +119,8 @@ export const type3 = (scene) => {
         scene.scene.start('scene-4', {gameType: scene.sceneData.gameType, player1: player1})
     })
     
-    socket.once('opponentLeft', () => {
+    socket.on('opponentLeft', data => {
+        if(data?.roomId&&data.roomId!==roomId)return
         scene.sound.stopByKey('winner')
         if (scene.winnerBlastInterval !== null) {
             clearInterval(scene.winnerBlastInterval)

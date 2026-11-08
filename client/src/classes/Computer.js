@@ -28,7 +28,7 @@ export class Computer {
 
         //console.log(randomWeapon.name)
 
-        if (randomWeapon.type === 0) {
+        if (randomWeapon.type === undefined || randomWeapon.type === 0) {
             this.handleType0(randomWeapon, randomIndex)
         }
         else if (randomWeapon.type === 1) {

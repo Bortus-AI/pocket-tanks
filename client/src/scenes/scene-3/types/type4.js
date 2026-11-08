@@ -1,3 +1,4 @@
+import { createPlayerNameInput } from '../../../graphics/player-name-input';
 import { Display } from "phaser";
 import { usernameArray } from "../../../utils/usernames";
 
@@ -11,8 +12,7 @@ export const type4 = (scene) => {
     const a = scene.add.text(screenCenterX, 100, 'PLAYER 1').setFontSize(50);
 
     const b = scene.add.text(screenCenterX, 200, 'NAME :  ').setFontSize(50);
-    const c = scene.add.text(screenCenterX, 200, usernameArray[Math.floor(Math.random()*usernameArray.length)]).setFontSize(50);
-    const d = scene.add.text(screenCenterX + 50, 200, '_').setFontSize(50);
+    const c = createPlayerNameInput(scene, screenCenterX, 194, usernameArray[Math.floor(Math.random()*usernameArray.length)], {label: 'Player 1 name'});
 
     if (window.sdk === 'kongregate' && !window.kongregate.services.isGuest()) {
         var username = window.kongregate.services.getUsername()
@@ -23,11 +23,10 @@ export const type4 = (scene) => {
     const e = scene.add.text(screenCenterX, 300, 'COLOR :  ').setFontSize(50);
     const f = scene.add.text(screenCenterX, 300, '').setFontSize(50);
 
-    [a,b,c,d,e,f].forEach((text) => { text.setFontFamily('"Days One"') })
+    [a,b,e,f].forEach((text) => { text.setFontFamily('"Days One"') })
 
     a.setOrigin(0.5, 0)
     b.setOrigin(1, 0)
-    c.setOrigin(0, 0)
     e.setOrigin(1, 0)
     f.setOrigin(0, 0)
 
@@ -35,32 +34,8 @@ export const type4 = (scene) => {
     strokeText(a, 6)
     b.setColor('rgba(180,180,180,1)')
     strokeText(b, 6)
-    c.setColor('rgba(240,240,240,1)')
-    strokeText(c, 6)
-    d.setColor('rgba(240,240,240,1)')
-    strokeText(d, 6)
     e.setColor('rgba(180,180,180,1)')
     strokeText(e, 6)
-
-    d.setX(c.x + c.width)
-
-    scene.input.keyboard.on('keydown', (e) => {
-        if (e.key === "Backspace") {
-            c.setText(c.text.slice(0, c.text.length - 1))
-            d.setX(c.x + c.width)
-
-        }
-        else {
-            if (isAlphaNumeric(e.key) && c.text.length < 16) {
-                c.setText(c.text + e.key)
-                d.setX(c.x + c.width)
-            }
-        }
-    })
-
-    setInterval(() => {
-        d.visible === true ? d.setVisible(false) : d.setVisible(true)
-    }, 500);
 
     var colors = []
     var colorValues = [0xFF0000, 0xFF9900, 0xFFFF00, 0x66FF33, 0x00FFFF, 0x0000FF, 0x9933FF, 0xCC0099]
@@ -131,18 +106,3 @@ const strokeText = (txt, thickness) => {
 
     txt.setStroke('rgba(' + r + ',' + g + ',' + b + ',' + a + ')', thickness)
 }
-
-const isAlphaNumeric = (str) => {
-    if (str.length !== 1) return
-    var code, i, len;
-  
-    for (i = 0, len = str.length; i < len; i++) {
-      code = str.charCodeAt(i);
-      if (!(code > 47 && code < 58) && // numeric (0-9)
-          !(code > 64 && code < 91) && // upper alpha (A-Z)
-          !(code > 96 && code < 123)) { // lower alpha (a-z)
-        return false;
-      }
-    }
-    return true;
-};

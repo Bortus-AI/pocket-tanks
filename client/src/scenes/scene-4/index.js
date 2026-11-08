@@ -1,9 +1,11 @@
+import { addBattlefield } from '../../graphics/battlefield';
 import { Scene, GameObjects, BlendModes, Textures } from 'phaser';
 import { type1 } from './types/type1';
 import { type2 } from './types/type2';
 import { type3 } from './types/type3';
 import { type4 } from './types/type4';
 import { drawBackBtn } from '../../graphics/back-btn';
+import { parkOnlineMatch, onlineSession } from '../../socket/session';
 
 export class Scene4 extends Scene {
     constructor() {
@@ -28,6 +30,9 @@ export class Scene4 extends Scene {
 
 
     create = () => {
+        addBattlefield(this, 'setup-landscape')
+        this.add.rectangle(600,400,1200,800,0x091e28,.88).setDepth(-9)
+
         //this.fps = this.add.text(0, 0, this.game.loop.actualFps)
 
         if (this.sceneData.gameType === 1) {
@@ -51,6 +56,7 @@ export class Scene4 extends Scene {
         drawBackBtn(ctx, canvas.width, canvas.height)
         var backtexture = this.textures.addCanvas('back-btn', canvas, true)
         var backbtn = this.add.image(100, this.game.renderer.height - 100, backtexture)
+        backbtn.setName('online-lobby-back')
         backbtn.setDepth(10)
         
         backbtn.setInteractive()
@@ -61,8 +67,7 @@ export class Scene4 extends Scene {
                 //console.log(this.roomList?.length)
                 //console.log('clearing rooms')
                 this.clearRooms()
-                const socket = window.socket
-                socket.emit('leaveRoom', {})
+                if(onlineSession.roomId){parkOnlineMatch();return}
             }
             this.scene.start('scene-3', {gameType: this.sceneData.gameType})
         })

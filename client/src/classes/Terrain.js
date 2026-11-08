@@ -63,6 +63,41 @@ export class Terrain extends Textures.CanvasTexture {
 
 
 
+    // Run-length encode gameplay material as well as solidity: rubber and glue
+    // must agree on both clients for later bounces and coating counters to work.
+    exportMask = () => {
+        const pixels=this.context.getImageData(0,0,this.width,this.height).data;
+        const material=i=>!pixels[i+3]?0:pixels[i]===230&&pixels[i+1]===0&&pixels[i+2]===230?2:pixels[i]===135&&pixels[i+1]===155&&pixels[i+2]===82?3:1;
+        const runs=[],values=[];let value=material(0),count=0;
+        for(let i=0;i<pixels.length;i+=4){const state=material(i);if(state===value)count++;else{runs.push(count);values.push(value);count=1;value=state;}}
+        runs.push(count);values.push(value);return {version:2,runs,values};
+    }
+
+    multiplayerCorrection = data => {
+        if(!data || !Array.isArray(data.runs)) return;
+        if(data.values && (!Array.isArray(data.values)||data.values.length!==data.runs.length))return;
+        const image=this.context.getImageData(0,0,this.width,this.height);
+        let offset=0,legacy=data.first?1:0;
+        for(let run=0;run<data.runs.length;run++){
+            const count=data.runs[run],value=data.values?data.values[run]:legacy;
+            if(!Number.isInteger(count)||count<0||offset+count>this.width*this.height||![0,1,2,3].includes(value))return;
+            for(let n=0;n<count;n++,offset++){
+                const i=offset*4;
+                if(value===2){image.data[i]=230;image.data[i+1]=0;image.data[i+2]=230;}
+                else if(value===3){image.data[i]=135;image.data[i+1]=155;image.data[i+2]=82;}
+                else if(value===1){
+                    const wasRubber=image.data[i]===230&&image.data[i+1]===0&&image.data[i+2]===230;
+                    const wasGlue=image.data[i]===135&&image.data[i+1]===155&&image.data[i+2]===82;
+                    if(!image.data[i+3]||wasRubber||wasGlue){image.data[i]=99;image.data[i+1]=112;image.data[i+2]=85;}
+                }
+                image.data[i+3]=value?255:0;
+            }
+            legacy=1-legacy;
+        }
+        if(offset!==this.width*this.height)return;
+        this.context.putImageData(image,0,0);this.update();
+    }
+
     save = () => {
         //this.update()
         this.previousSaved = this.context.getImageData(0, 0, this.width, this.height)
