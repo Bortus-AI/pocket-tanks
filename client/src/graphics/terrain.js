@@ -1,167 +1,77 @@
-import { Terrain } from "../classes/Terrain";
+import { makeTerrainPath, TERRAIN_PROFILES, terrainProfile } from './terrain-layouts';
 
+// Paint the terrain into the same alpha mask used by collision and craters.
+// Everything is clipped to the playable ground so visual detail never changes
+// the shape that the physics code sees.
 export const setTerrain = (ctx, width, height, path, terrain) => {
-    var img1 = new Image();
-    img1.onload = start
-    img1.src = "./assets/images/6.png";
+    ctx.clearRect(0, 0, width, height);
+    const profile = terrainProfile(path[0]?.profile || terrain?.layoutKind);
+    if (terrain) terrain.layoutKind = profile.key;
 
-    function start () {
-        var pattern1 = ctx.createPattern(img1, 'repeat');
-        ctx.fillStyle = pattern1
+    const groundPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(-200, height);
+        ctx.lineTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.lineTo(width + 200, height);
+        ctx.closePath();
+    };
 
-        ctx.beginPath()
-        ctx.moveTo(-200, height)
-        ctx.lineTo(path[0].x, path[0].y)
+    groundPath();
+    const soil = ctx.createLinearGradient(0, 0, 0, height);
+    soil.addColorStop(0, profile.soil[0]);
+    soil.addColorStop(0.12, profile.soil[1]);
+    soil.addColorStop(0.48, profile.soil[2]);
+    soil.addColorStop(1, profile.soil[3]);
+    ctx.fillStyle = soil;
+    ctx.fill();
 
-        for (let index = 1; index < path.length; index++) {
-            ctx.lineTo(path[index].x, path[index].y)
-        }
-        ctx.lineTo(width, height)
-        ctx.closePath()
-        ctx.fill()
-
-        createLayers(ctx, path, terrain)
+    // All surface detail stays inside the opaque collision silhouette.
+    ctx.save(); groundPath(); ctx.clip();
+    let seed = 92821;
+    const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    // Rock seams follow the surface rather than the screen horizon.
+    for (let band = 0; band < 12; band++) {
+        ctx.beginPath();
+        path.forEach((p, i) => {
+            const y = p.y + 15 + band * 22 + Math.sin(p.x * .016 + band) * 9;
+            if (i === 0) ctx.moveTo(p.x, y); else ctx.lineTo(p.x, y);
+        });
+        ctx.strokeStyle = band % 3 ? 'rgba(190,172,127,.06)' : 'rgba(8,24,28,.16)';
+        ctx.lineWidth = band % 3 ? 2 : 5; ctx.stroke();
     }
-
-    function makeDummyTerrain () {
-        ctx.fillStyle = 'rgba(0,0,0,1)'
-
-        ctx.beginPath()
-        ctx.moveTo(-200, height)
-        ctx.lineTo(path[0].x, path[0].y)
-
-        for (let index = 1; index < path.length; index++) {
-            ctx.lineTo(path[index].x, path[index].y)
-        }
-        ctx.lineTo(width, height)
-        ctx.closePath()
-        ctx.fill()
+    for (let i = 0; i < width * height / 130; i++) {
+        const x = random() * width, y = random() * height, r = .4 + random() * 2;
+        ctx.fillStyle = random() > .5 ? 'rgba(215,202,156,.07)' : 'rgba(8,22,25,.12)';
+        ctx.beginPath(); ctx.ellipse(x, y, r * 2, r, -.3, 0, Math.PI * 2); ctx.fill();
     }
+    // Broad moss and soil cap with a sunlit lip.
+    ctx.beginPath(); path.forEach((p,i) => i ? ctx.lineTo(p.x,p.y+5) : ctx.moveTo(p.x,p.y+5));
+    ctx.strokeStyle = profile.cap; ctx.lineWidth = 14; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.beginPath(); path.forEach((p,i) => i ? ctx.lineTo(p.x,p.y+1) : ctx.moveTo(p.x,p.y+1));
+    ctx.strokeStyle = profile.rim; ctx.lineWidth = 3; ctx.stroke();
+    // Small stones and ground cover are paint, never extra collision geometry.
+    for (let i = 1; i < path.length; i++) {
+        const a = path[i-1], b = path[i];
+        for (let t = 0; t < 1; t += .4) {
+            if (random() > .3) continue;
+            const x = a.x + (b.x-a.x)*t, y = a.y + (b.y-a.y)*t;
+            ctx.fillStyle = random() > .5 ? '#8e9a76' : '#3c5144';
+            ctx.beginPath(); ctx.ellipse(x,y+4,1+random()*3,1+random()*2,0,0,Math.PI*2); ctx.fill();
+        }
+    }
+    ctx.restore();
 
-    makeDummyTerrain()
-}
+    if (terrain?.scene) terrain.scene.events.emit('terrain-finished');
+};
 
-/**
- * @param {CanvasRenderingContext2D} ctx 
- * @param {Terrain} terrain
- */
-
+/** @param {CanvasRenderingContext2D} ctx @param {Terrain} terrain */
 export const drawTerrain = (ctx, width, height, terrain) => {
-    var path = makePath(width, height)
-    setTerrain(ctx, width, height, path, terrain)
-    return path
-}
-
-
-
-const makePath = (width, height) => {
-    var x, y, prevX, prevY, radius, angle, factor, path = [];
-    x = -200
-    y = height * (1 - Math.random() * Math.random())
-    prevX = x
-    prevY = y
-    path.push({x, y})
-    
-    while (x != width + 200) {
-        factor = Math.floor(Math.random() * 1)
-        radius = Math.floor(Math.random() * 30 + 10)
-        angle = getAngle(prevX, prevY, width, height)
-        
-        // if (Math.abs(prevAngle - angle) > 0.2) {
-        //     radius = Math.floor(Math.random() * 10 + 1)
-        // }
-
-        x = prevX + radius * Math.cos(angle)
-        y = prevY + radius * Math.sin(angle)
-
-        if (x > width + 200) {
-            x = width + 200
-        }
-        if (y > height) {
-            y = height
-        } 
-        if (y < height/5) {
-            y = prevY - radius * Math.sin(angle)
-        }
-
-        if (factor === 0) {
-            if (Math.random() < 0.2) {
-                x = prevX + radius
-                y = prevY
-            }
-            path.push({x, y})
-        }
-
-        prevX = x
-        prevY = y
-    }
-
-    return path
-}
-
-
-
-const getAngle = (x, y, width, height) => {
-    var angle = Math.random() * Math.PI - Math.PI/2
-    if (y > height/1.5) {
-        angle = (angle - Math.PI/2 * Math.sqrt(Math.random())) / 2
-    }
-    if (y < height/1.5) {
-        angle = (angle + Math.PI/2 * Math.sqrt(Math.random())) / 2
-    }
-    if (x < width/2) {
-        angle = (angle - Math.PI/2 * Math.sqrt(Math.random())) / 2
-    }
-    if (x > width/2) {
-        angle = (angle + Math.PI/2 * Math.sqrt(Math.random())) / 2
-    }
-    return angle
-}
-
-
-
-const createLayers = (ctx, path, terrain) => {
-    ctx.lineJoin = 'round'
-    var angle, img, pattern;
-    img = [new Image(), new Image(), new Image(), new Image(), new Image()]
-    pattern = [null, null, null, null, null]
-    var layers = [{color: 'rgba(0,190,0,1)', width: 10}, {color: 'rgba(0,180,0,1)', width: 30}, {color: 'rgba(0,160,30,1)', width: 70}, {color: 'rgba(0,140,50,1)', width: 130}, {color: 'rgba(0,120,50,1)', width: 200}]
-
-    //layers.reverse()
-
-    const makeLayer = (layer, index, terrain) => {
-        ctx.beginPath()
-
-        angle = Math.atan((path[1].y - path[0].y) / (path[1].x - path[0].x))
-        ctx.moveTo(path[0].x - 5000 * Math.cos(angle), path[0].y - 5000 * Math.sin(angle))
-
-        for (let index = 0; index < path.length; index++) {
-            ctx.lineTo(path[index].x, path[index].y)
-        }
-
-        angle = Math.atan((path[path.length - 1].y - path[path.length - 2].y) / (path[path.length - 1].x - path[path.length - 2].x))
-        ctx.lineTo(path[path.length - 1].x + 5000 * Math.cos(angle), path[path.length - 1].y + 5000 * Math.sin(angle))
-
-        img[index] = new Image();
-        img[index].onload = () => {startLayers(terrain)};
-        img[index].src = `./assets/images/${index + 1}.png`;
-        function startLayers(terrain) {
-            pattern[index] = ctx.createPattern(img[index], 'repeat');
-            ctx.fillStyle = pattern[index]
-            ctx.lineWidth = layer.width
-            ctx.strokeStyle = pattern[index]
-            ctx.globalCompositeOperation = 'source-atop'
-            ctx.stroke()
-            if (index === 0) {
-                terrain.scene.events.emit('terrain-finished')
-                return
-            }
-
-            makeLayer(layers[index - 1], index - 1, terrain)
-        }
-
-    }
-    makeLayer(layers[4], 4, terrain)
-}
-
+    const requested = terrain?.scene?.sceneData?.terrainKind || terrain?.scene?.registry?.get('terrainKind');
+    const profile = requested && requested !== 'random' ? terrainProfile(requested) : TERRAIN_PROFILES[Math.floor(Math.random() * TERRAIN_PROFILES.length)];
+    const path = makeTerrainPath(width, height, profile.key);
+    if (terrain) terrain.layoutKind = profile.key;
+    setTerrain(ctx, width, height, path, terrain);
+    return path;
+};
 

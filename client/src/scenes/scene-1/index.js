@@ -1,181 +1,42 @@
-import { Scene, GameObjects, BlendModes, Textures } from 'phaser';
-import WebFontFile from '../../classes/WebFontFile';
-import Phaser from 'phaser';
-import assetLoader from '../../weapons/sounds'
-import { createPlayButton } from '../../graphics/play-btn';
-import { Tween } from '../../classes/Tween';
-import { Collider } from '../../classes/Collider';
+import { resumableOnlineRoom, resumeLastOnlineMatch } from '../../socket/session';
+import { Scene } from 'phaser';
+import { addBattlefield } from '../../graphics/battlefield';
+import { drawVehicle } from '../../graphics/vehicle';
 
 export class Scene1 extends Scene {
-    constructor() {
-        super('scene-1');
-        this.fps = null
-        this.playbtn = null
-        this.checkResize = null
-    }
-
-
-
-    preload = () => {
-        //console.log(window.gdsdk)
-        //
-    }
-
-
-
-
+    constructor() { super('scene-1'); }
     create = () => {
-        const screenCenterX = this.cameras.main.worldView.x + this.cameras.main.width / 2;
-        const screenCenterY = this.cameras.main.worldView.y + this.cameras.main.height / 2;
-
-        var cover = this.physics.add.image(screenCenterX, screenCenterY - 500, 'cover').setScale(1.01)
-
-        this.tweens.add({
-            targets: cover,
-            y: cover.y + 400,
-            ease: 'Bounce.Out',
-            duration: 2200
-        })
-
-        this.createPlayBtn()
-        this.addScreenResize()
-
-        this.sound.stopAll()
-        this.sound.stopByKey('winner')
-        this.sound.play('intro', {loop: true})
-
-        const w = this.game.renderer.width
-
-        var [guideOption, guideBox] = this.createOption('address-book-regular', 'Guide', w * 5/7, screenCenterY * 5/3 - 50)
-        guideOption.setDisplaySize(80, 60)
-        guideBox.setInteractive()
-        guideBox.on('pointerdown', () => { this.sound.play('click', {volume: 0.3}); this.scene.start('guide-scene') })
-
-        var [aboutOption, aboutBox] = this.createOption('question-solid', 'About', w * 2/7, screenCenterY * 5/3 - 50)
-        aboutOption.setDisplaySize(60, 80)
-        aboutBox.setInteractive()
-        aboutBox.on('pointerdown', () => { this.sound.play('click', {volume: 0.3}); this.scene.start('about-scene') })
-
-        var [controlsOption, controlsBox] = this.createOption('keyboard-regular', 'Controls', w * 1/7, screenCenterY * 5/3 - 50)
-        controlsOption.setDisplaySize(100, 80)
-        controlsBox.setInteractive()
-        controlsBox.on('pointerdown', () => { this.sound.play('click', {volume: 0.3}); this.scene.start('controls-scene') })
-
-        var [screenshotOption, screenshotBox] = this.createOption('screenshot', 'Screenshots', w * 6/7, screenCenterY * 5/3 - 50)
-        screenshotOption.setDisplaySize(90, 75)
-        screenshotBox.setInteractive()
-        screenshotBox.on('pointerdown', () => { this.sound.play('click', {volume: 0.3}); this.scene.start('screenshot-scene') })
+        const w = this.renderer.width, h = this.renderer.height;
+        addBattlefield(this, 'menu-landscape');
+        const shade = this.add.graphics();
+        shade.fillStyle(0x081b25, .6); shade.fillRect(0, 0, w * .56, h);
+        this.add.text(64, 62, 'P T  /  ARTILLERY DIVISION', {fontFamily:'Arial',fontSize:15,color:'#a2bfb9',letterSpacing:4});
+        this.add.text(64, 174, 'POCKET\nTANKS', {fontFamily:'Arial Black, Arial',fontStyle:'bold',fontSize:100,color:'#f1ebd8',lineSpacing:-14});
+        this.add.rectangle(68, 426, 8, 38, 0xe9ad70).setOrigin(0,.5);
+        this.add.text(91, 407, 'Big terrain. Heavy firepower.', {fontFamily:'Arial',fontSize:24,color:'#e1e4d4'});
+        this.add.text(91, 440, 'A new look for the art of artillery.', {fontFamily:'Arial',fontSize:17,color:'#9db5b1'});
+        const canvas = document.createElement('canvas'); canvas.width=840; canvas.height=480;
+        const ctx=canvas.getContext('2d'); ctx.translate(0,18); ctx.scale(19,19); drawVehicle(ctx,'#7b9e8e',true);
+        if(this.textures.exists('hero-tank')) this.textures.remove('hero-tank');
+        this.textures.addCanvas('hero-tank',canvas);
+        this.add.image(902, 490, 'hero-tank').setScale(.74).setRotation(-.06);
+        this.add.text(750, 680, 'M–07  /  RIDGELINE', {fontFamily:'Arial',fontSize:16,color:'#c6cfbb',letterSpacing:3});
+        const button = this.add.rectangle(64, 527, 330, 66, 0xe7b17b).setOrigin(0).setInteractive({useHandCursor:true});
+        this.add.text(90, 548, 'ENTER THE BATTLEFIELD   →', {fontFamily:'Arial',fontStyle:'bold',fontSize:18,color:'#152d35'});
+        button.on('pointerover',()=>button.setFillStyle(0xffd6a0));
+        button.on('pointerout',()=>button.setFillStyle(0xe7b17b));
+        button.on('pointerdown',()=>{this.sound.play('click',{volume:.3});this.scene.start('scene-2');});
+        [['Controls','controls-scene'],['Field guide','guide-scene'],['About','about-scene']].forEach(([label,scene],i)=>{
+            const text=this.add.text(64+i*145,647,label,{fontFamily:'Arial',fontSize:17,color:'#bdd0c8'}).setInteractive({useHandCursor:true});
+            text.on('pointerover',()=>text.setColor('#ffe2b6')); text.on('pointerout',()=>text.setColor('#bdd0c8'));
+            text.on('pointerdown',()=>this.scene.start(scene));
+        });
+        this.add.text(64,h-48,'PRECISION. POWER. ONE MORE SHOT.',{fontFamily:'Arial',fontSize:12,color:'#779a9a',letterSpacing:3});
+        const resumeNotice=this.registry.get('onlineResumeNotice');
+        if(resumeNotice){this.add.text(64,605,resumeNotice,{fontFamily:'Arial',fontSize:15,color:'#f0c28d',wordWrap:{width:470}});this.registry.remove('onlineResumeNotice');}
+        if(!resumeNotice && resumableOnlineRoom()){
+            this.add.text(64,605,'RESUME ONLINE MATCH  →',{fontFamily:'Arial',fontSize:17,color:'#f0c28d'}).setInteractive({useHandCursor:true}).on('pointerdown',resumeLastOnlineMatch);
+        }
+        this.sound.stopAll(); this.sound.play('intro',{loop:true,volume:.45});
     }
-
-
-
-
-    createPlayBtn = () => {
-        const screenCenterX = this.cameras.main.worldView.x + this.cameras.main.width / 2;
-        const screenCenterY = this.cameras.main.worldView.y + this.cameras.main.height / 2;
-
-        var canvas = createPlayButton()
-
-        var playtxt = this.add.text(screenCenterX, screenCenterY * 5/3 - 50, 'play', {font: '400 Cabin'})
-        playtxt.setDepth(20)
-        playtxt.setColor('rgba(240,240,240,1)')
-        playtxt.setStroke('rgba(155,155,155,1)', 4)
-        playtxt.setFontSize(75)
-        playtxt.setOrigin(0.5, 0.55)
-
-        var playtexture = this.textures.addCanvas('play-btn', canvas, true)
-        this.playbtn = this.add.image(screenCenterX, screenCenterY * 5/3 - 50, playtexture)
-
-       this.clicktext = this.add.text(0, 0, "click").setFontFamily('Verdana').setVisible(false).setFontSize(14).setDepth(20).setStroke('rgba(80,80,80,1)', 4)
-
-
-        this.playbtn.setInteractive()
-        this.playbtn.on('pointerdown', () => {
-            this.sound.play('click', {volume: 0.3})
-            this.scene.start('scene-2')
-        })
-
-    }
-
-
-
-    createOption = (image, text, x, y) => {
-        var option = this.add.image(x, y - 15, image).setAlpha(0.8).setOrigin(0.5, 0.5)
-        var box = this.add.rectangle(x, y, 120, 120).setStrokeStyle(2, 0xcccccc, 0)
-        box.setInteractive()
-        box.on('pointerover', () => {
-            box.setStrokeStyle(2, 0xcccccc, 1)
-        })
-        box.on('pointerout', () => {
-            box.setStrokeStyle(2, 0xcccccc, 0)
-        })
-        if (!this.game.device.os.desktop) {
-            this.add.text(x, y + 50, text).setOrigin(0.5, 0.5).setFontFamily('Verdana').setFontSize(26)
-        }
-        else {
-            this.add.text(x, y + 40, text).setOrigin(0.5, 0.5).setFontFamily('Verdana')
-        }
-        option.setInteractive()
-        return [option, box]
-    }
-
-
-
-
-    addScreenResize = () =>{
-        var w = this.renderer.width
-        
-        var resizeScreenContainer = this.add.container(w - 30, 30)
-        var resizeScreenText = this.add.text(0, 0, 'Fullscreen').setOrigin(1, 0).setFontFamily('Verdana').setFontSize(18).setPadding(0,0,10,0)
-        var expandScreenIcon = this.add.image(0, 0, 'expand').setOrigin(1, 0).setDisplaySize(20, 20).setAlpha(0.8)
-        var compressScreenIcon = this.add.image(0, 0, 'compress').setOrigin(1, 0).setDisplaySize(20, 20).setVisible(false).setAlpha(0.8)
-
-        if (!this.game.device.os.desktop) {
-            resizeScreenText.setFontSize(30)
-            expandScreenIcon.setDisplaySize(30, 30)
-            compressScreenIcon.setDisplaySize(30, 30)
-        }
-
-        resizeScreenText.setX(resizeScreenText.x - expandScreenIcon.displayWidth)
-        resizeScreenContainer.add([resizeScreenText, expandScreenIcon, compressScreenIcon])
-
-        const onClickResize = () => {
-            if (this.game.scale.isFullscreen === true) {
-                this.game.scale.stopFullscreen()
-            }
-            else {
-                this.game.scale.startFullscreen()
-            }
-        }
-
-        resizeScreenText.setInteractive()
-        expandScreenIcon.setInteractive()
-        compressScreenIcon.setInteractive()
-        resizeScreenText.on('pointerup', onClickResize)
-        expandScreenIcon.on('pointerup', onClickResize)
-        compressScreenIcon.on('pointerup', onClickResize)
-
-        this.checkResize = () => {
-            if (this.game.scale.isFullscreen === false) {
-                resizeScreenText.setText('Fullscreen')
-                compressScreenIcon.setVisible(false)
-                expandScreenIcon.setVisible(true)
-            }
-            else {
-                resizeScreenText.setText('Minimise')
-                compressScreenIcon.setVisible(true)
-                expandScreenIcon.setVisible(false)
-            }
-        }
-    }
-
-
-
-
-    update = (time, delta) => {
-        if (this.checkResize !== null) {
-            this.checkResize()
-        }
-    }
-
 }

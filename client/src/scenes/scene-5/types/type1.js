@@ -1,3 +1,5 @@
+import { attachDraftPreview } from '../../../weapons/expansion/draft-preview';
+import { weaponIconTexture } from '../../../weapons/expansion/presentation';
 import { weaponArray } from "../../../weapons/array";
 import { Display } from "phaser";
 
@@ -152,7 +154,7 @@ export const type1 = (scene) => {
         var randomWeaponIndex =  Math.floor(Math.random() * weaponArray.length)
         var pickable = scene.add.container(rect2.x - rect2.width/2 - 80, rect2.y - rect2.height/2 + 10 + index * 40)
         var txt = scene.add.text(30,5,weaponArray[randomWeaponIndex].name).setDepth(10)
-        var img = scene.add.image(10,15, scene.textures.addCanvas(Math.random().toString(32).slice(3,7), weaponArray[randomWeaponIndex].logoCanvas)).setDepth(10)
+        var img = scene.add.image(10,15, weaponIconTexture(scene, weaponArray[randomWeaponIndex])).setDepth(10)
         var rect = scene.add.rectangle(110,15,250,36).setDepth(2)
         //rect.setStrokeStyle(2, 0xff0000)
         pickable.add(txt)
@@ -179,7 +181,7 @@ export const type1 = (scene) => {
         var randomWeaponIndex =  Math.floor(Math.random() * weaponArray.length)
         var pickable = scene.add.container(rect2.x - rect2.width/2 + 180, rect2.y - rect2.height/2 + 10 + index * 40)
         var txt = scene.add.text(30,5,weaponArray[randomWeaponIndex].name).setDepth(10)
-        var img = scene.add.image(10,15, scene.textures.addCanvas(Math.random().toString(32).slice(3,7), weaponArray[randomWeaponIndex].logoCanvas)).setDepth(10)
+        var img = scene.add.image(10,15, weaponIconTexture(scene, weaponArray[randomWeaponIndex])).setDepth(10)
         var rect = scene.add.rectangle(110,15,250,36).setDepth(2)
         //rect.setStrokeStyle(2, 0xff0000)
         pickable.add(txt)
@@ -201,6 +203,8 @@ export const type1 = (scene) => {
             pickWeapon(pickableArray[index + totalWeapons/2])
         })
     }
+
+    attachDraftPreview(scene, pickableArray)
 
     pickableArray.forEach(pickable => {
         pickable.rect.on('pointerdown', () => {
@@ -270,7 +274,7 @@ export const type1 = (scene) => {
         }
     }
 
-    const g = scene.add.text(screenCenterX, 700, 'RANDOM').setFontSize(50).setOrigin(0.5);
+    const g = scene.add.text(screenCenterX, 700, 'RANDOM ALL').setFontSize(50).setOrigin(0.5);
     g.setFontFamily('"Days One"')
     g.setOrigin(0.5)
     g.setColor('rgba(240,240,240,1)')

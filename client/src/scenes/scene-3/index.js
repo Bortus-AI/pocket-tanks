@@ -1,3 +1,4 @@
+import { addBattlefield } from '../../graphics/battlefield';
 import { Scene, GameObjects, BlendModes, Textures } from 'phaser';
 import { type1 } from './types/type1';
 import { type2 } from './types/type2';
@@ -30,6 +31,9 @@ export class Scene3 extends Scene {
 
 
     create = () => {
+        addBattlefield(this, 'setup-landscape')
+        this.add.rectangle(600,400,1200,800,0x091e28,.88).setDepth(-9)
+
         //this.fps = this.add.text(0, 0, this.game.loop.actualFps)
 
         if (this.sceneData.gameType === 1) {

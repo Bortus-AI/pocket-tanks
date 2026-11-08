@@ -1,3 +1,5 @@
+import { TERRAIN_PROFILES } from '../../graphics/terrain-layouts';
+import { addBattlefield } from '../../graphics/battlefield';
 import { Scene, GameObjects, BlendModes, Textures } from 'phaser';
 import { drawBackBtn } from '../../graphics/back-btn';
 import WebFontFile from '../../classes/WebFontFile';
@@ -22,9 +24,19 @@ export class Scene2 extends Scene {
         //this.fps = this.add.text(0, 0, this.game.loop.actualFps)
         //this.clicktext = this.add.text(0, 0, "click").setFontFamily('Verdana').setVisible(false).setFontSize(14)
 
+        addBattlefield(this, 'mode-landscape')
+        this.add.rectangle(600,400,1200,800,0x091e28,.7)
+        this.add.text(600,85,'CHOOSE YOUR ENGAGEMENT',{fontFamily:'Arial',fontSize:18,color:'#a9c6bd',letterSpacing:4}).setOrigin(.5)
         const screenCenterX = this.cameras.main.worldView.x + this.cameras.main.width / 2;
         const screenCenterY = this.cameras.main.worldView.y + this.cameras.main.height / 2;
         const h = this.game.renderer.height
+
+        const layouts=[{key:'random',name:'SURPRISE ME'},...TERRAIN_PROFILES]
+        let layoutIndex=Math.max(0,layouts.findIndex(layout=>layout.key===this.registry.get('terrainKind')))
+        const terrainButton=this.add.text(screenCenterX,h-63,'',{fontFamily:'Arial',fontSize:16,color:'#c9d8c5',backgroundColor:'#1b3842',padding:{x:18,y:13}}).setOrigin(.5).setInteractive({useHandCursor:true})
+        const updateTerrainChoice=()=>terrainButton.setText(`TERRAIN: ${layouts[layoutIndex].name.toUpperCase()}   ›`)
+        updateTerrainChoice()
+        terrainButton.on('pointerdown',()=>{layoutIndex=(layoutIndex+1)%layouts.length;this.registry.set('terrainKind',layouts[layoutIndex].key);updateTerrainChoice()})
 
         const a = this.add.text(screenCenterX, h/12 * 3, 'ONE PLAYER');
         const b = this.add.text(screenCenterX, h/12 * 5, 'TWO PLAYERS');
@@ -37,10 +49,12 @@ export class Scene2 extends Scene {
         c.setOrigin(0.5).setFontSize(50).setFontFamily(font).setColor('rgba(255,153,51,1)')
         d.setOrigin(0.5).setFontSize(50).setFontFamily(font).setColor('rgba(255,51,0,1)')
 
-        strokeText(a, 6)
-        strokeText(b, 6)
-        strokeText(c, 6)
-        strokeText(d, 6)
+        ;[a,b,c,d].forEach((text,i)=>{
+            const plate=this.add.rectangle(screenCenterX,text.y,610,94,0x1b3842,.92).setStrokeStyle(1,0x4a686c).setDepth(-1);
+            text.setFontFamily('Arial').setFontStyle('bold').setFontSize(30).setColor('#e2e7d5');
+            text.on('pointerover',()=>{plate.setFillStyle(0x355b60);text.setColor('#f6ce9c')});
+            text.on('pointerout',()=>{plate.setFillStyle(0x1b3842);text.setColor('#e2e7d5')});
+        });
 
         var canvas = document.createElement('canvas')
         var ctx = canvas.getContext('2d')

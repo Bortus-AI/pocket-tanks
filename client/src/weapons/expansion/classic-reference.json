@@ -1,0 +1,1922 @@
+[
+  {
+    "name": "Single Shot",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 0
+  },
+  {
+    "name": "Big Shot",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 1
+  },
+  {
+    "name": "3 Shot",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 2
+  },
+  {
+    "name": "5 Shot",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 3
+  },
+  {
+    "name": "Jackhammer",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 4
+  },
+  {
+    "name": "Heatseeker",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 5
+  },
+  {
+    "name": "Tracer",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 6
+  },
+  {
+    "name": "Pile Driver",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 7
+  },
+  {
+    "name": "Dirt Mover",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 8
+  },
+  {
+    "name": "Crazy Ivan",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 9
+  },
+  {
+    "name": "Spider",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 10
+  },
+  {
+    "name": "Sniper Rifle",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 11
+  },
+  {
+    "name": "Magic Wall",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 12
+  },
+  {
+    "name": "Dirt Slinger",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 13
+  },
+  {
+    "name": "Zapper",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 14
+  },
+  {
+    "name": "Napalm",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 15
+  },
+  {
+    "name": "Hail Storm",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 16
+  },
+  {
+    "name": "Ground Hog",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 17
+  },
+  {
+    "name": "Worm",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 18
+  },
+  {
+    "name": "Homing Worm",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 19
+  },
+  {
+    "name": "Skipper",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 20
+  },
+  {
+    "name": "Chain Reaction",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 21
+  },
+  {
+    "name": "Pineapple",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 22
+  },
+  {
+    "name": "Firecracker",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 23
+  },
+  {
+    "name": "Homing Missile",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 24
+  },
+  {
+    "name": "Dirtball",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 25
+  },
+  {
+    "name": "Tommy Gun",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 26
+  },
+  {
+    "name": "Mountain Mover",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 27
+  },
+  {
+    "name": "Scatter Shot",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 28
+  },
+  {
+    "name": "Cruiser",
+    "status": "existing",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 29
+  },
+  {
+    "name": "Jump Jets",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 400
+  },
+  {
+    "name": "Mud Pie",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 445
+  },
+  {
+    "name": "Pin Cushion",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 446
+  },
+  {
+    "name": "Laser Battery",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 447
+  },
+  {
+    "name": "Cannon Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 448
+  },
+  {
+    "name": "Wacky Tank",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 449
+  },
+  {
+    "name": "Digger",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 401
+  },
+  {
+    "name": "Glue Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 413
+  },
+  {
+    "name": "Fission Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 427
+  },
+  {
+    "name": "Late Bloomer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 450
+  },
+  {
+    "name": "Fire Bolt",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 451
+  },
+  {
+    "name": "Color Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 452
+  },
+  {
+    "name": "Potholes",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 453
+  },
+  {
+    "name": "Boomerang",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 415
+  },
+  {
+    "name": "Popcorn",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 454
+  },
+  {
+    "name": "Sprinkler",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 455
+  },
+  {
+    "name": "Well Digger",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 414
+  },
+  {
+    "name": "Bouncy Dirt",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 402
+  },
+  {
+    "name": "Super Tracer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 456
+  },
+  {
+    "name": "Minigun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 416
+  },
+  {
+    "name": "Laser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 406
+  },
+  {
+    "name": "Super Skipper",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 457
+  },
+  {
+    "name": "Crater Maker",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 409
+  },
+  {
+    "name": "Big Dirtball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 410
+  },
+  {
+    "name": "Super Zapper",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 458
+  },
+  {
+    "name": "Cruball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 459
+  },
+  {
+    "name": "Mega Cruiser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 460
+  },
+  {
+    "name": "Roller",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 461
+  },
+  {
+    "name": "Heavy Roller",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 462
+  },
+  {
+    "name": "Flash Blast",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 463
+  },
+  {
+    "name": "Nuke",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 404
+  },
+  {
+    "name": "Mega Nuke",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 405
+  },
+  {
+    "name": "Pillow Fight",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 464
+  },
+  {
+    "name": "Sink and Swim",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 465
+  },
+  {
+    "name": "Hotfoot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 466
+  },
+  {
+    "name": "Ambush",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 467
+  },
+  {
+    "name": "Beehive",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 468
+  },
+  {
+    "name": "Blast Off",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 469
+  },
+  {
+    "name": "Fire in the Hole",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 470
+  },
+  {
+    "name": "Lob-o-Matic",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 471
+  },
+  {
+    "name": "Rainbow Dirt",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 472
+  },
+  {
+    "name": "Super Laser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 407
+  },
+  {
+    "name": "Ground Shocker",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 473
+  },
+  {
+    "name": "Bouncy Wall",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 403
+  },
+  {
+    "name": "Lodestones",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 474
+  },
+  {
+    "name": "Particle Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 475
+  },
+  {
+    "name": "Magic Forest",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 419
+  },
+  {
+    "name": "Buckshot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 476
+  },
+  {
+    "name": "Quad Missile",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 477
+  },
+  {
+    "name": "Carpet Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 478
+  },
+  {
+    "name": "Flamethrower",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 428
+  },
+  {
+    "name": "Skimmer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 479
+  },
+  {
+    "name": "Volcano",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 480
+  },
+  {
+    "name": "Pedestal",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 420
+  },
+  {
+    "name": "Fire Storm",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 481
+  },
+  {
+    "name": "Meteor Shower",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 418
+  },
+  {
+    "name": "Roman Candle",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 482
+  },
+  {
+    "name": "Flying Digger",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 483
+  },
+  {
+    "name": "Comet",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 484
+  },
+  {
+    "name": "Sunburn",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 485
+  },
+  {
+    "name": "Riptide",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 486
+  },
+  {
+    "name": "Buzzsaw",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 487
+  },
+  {
+    "name": "Static Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 488
+  },
+  {
+    "name": "Mystery Bombs",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 489
+  },
+  {
+    "name": "Flower Power",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 490
+  },
+  {
+    "name": "Turn and Burn",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 491
+  },
+  {
+    "name": "Dome Protect",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 411
+  },
+  {
+    "name": "Backfire",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 432
+  },
+  {
+    "name": "Old Faithful",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 492
+  },
+  {
+    "name": "Bouncy Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 493
+  },
+  {
+    "name": "Chaos Grenade",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 494
+  },
+  {
+    "name": "Tar Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 495
+  },
+  {
+    "name": "Lightning Strike",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 496
+  },
+  {
+    "name": "Acid Rain",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 425
+  },
+  {
+    "name": "Porcupine",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 497
+  },
+  {
+    "name": "Power Grid",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 498
+  },
+  {
+    "name": "Shadow Blast",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 499
+  },
+  {
+    "name": "X-Ray Cannon",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 500
+  },
+  {
+    "name": "Bazooka",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 501
+  },
+  {
+    "name": "Lucky Shot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 502
+  },
+  {
+    "name": "Shelter",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 503
+  },
+  {
+    "name": "Fire + Ice",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 504
+  },
+  {
+    "name": "Anvil",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 505
+  },
+  {
+    "name": "Flare",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 506
+  },
+  {
+    "name": "Super Flare",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 507
+  },
+  {
+    "name": "Fracture",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 508
+  },
+  {
+    "name": "Claymore",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 509
+  },
+  {
+    "name": "Phantom",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 510
+  },
+  {
+    "name": "Earth Mover",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 430
+  },
+  {
+    "name": "Flak",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 511
+  },
+  {
+    "name": "Fireball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 429
+  },
+  {
+    "name": "Flea Circus",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 512
+  },
+  {
+    "name": "Super Star",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 513
+  },
+  {
+    "name": "Drillers",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 514
+  },
+  {
+    "name": "Gamma Blaster",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 515
+  },
+  {
+    "name": "Gravity Well",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 421
+  },
+  {
+    "name": "Hot Potato",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 516
+  },
+  {
+    "name": "Funnel",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 517
+  },
+  {
+    "name": "Crazy Wall",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 518
+  },
+  {
+    "name": "Burnt Popcorn",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 519
+  },
+  {
+    "name": "Fireworks",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 520
+  },
+  {
+    "name": "Super Nova",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 521
+  },
+  {
+    "name": "Great Wall",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 522
+  },
+  {
+    "name": "Snowblower",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 523
+  },
+  {
+    "name": "Lava Cannon",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 524
+  },
+  {
+    "name": "Solar Flare",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 525
+  },
+  {
+    "name": "10 Shot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 417
+  },
+  {
+    "name": "Stinger",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 526
+  },
+  {
+    "name": "Mega Reaction",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 527
+  },
+  {
+    "name": "Ant Farm",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 528
+  },
+  {
+    "name": "Sonic Blast",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 529
+  },
+  {
+    "name": "Rockslide",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 530
+  },
+  {
+    "name": "Lightning Rod",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 531
+  },
+  {
+    "name": "Star Dust",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 532
+  },
+  {
+    "name": "Water Balloons",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 533
+  },
+  {
+    "name": "Snowballs",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 534
+  },
+  {
+    "name": "Sledgehammer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 535
+  },
+  {
+    "name": "Collide-o-scope",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 536
+  },
+  {
+    "name": "Neon Blast",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 537
+  },
+  {
+    "name": "Island",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 538
+  },
+  {
+    "name": "Golden Bullet",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 424
+  },
+  {
+    "name": "Melt Down",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 539
+  },
+  {
+    "name": "Streamers",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 540
+  },
+  {
+    "name": "Mass Driver",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 541
+  },
+  {
+    "name": "Molten Plastic",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 542
+  },
+  {
+    "name": "Spinner",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 543
+  },
+  {
+    "name": "Flying Discs",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 544
+  },
+  {
+    "name": "Phaser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 545
+  },
+  {
+    "name": "Shredder",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 546
+  },
+  {
+    "name": "Aqua Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 547
+  },
+  {
+    "name": "Tunnel",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 431
+  },
+  {
+    "name": "Lava",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 548
+  },
+  {
+    "name": "Bouncy Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 549
+  },
+  {
+    "name": "Laser Strike",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 550
+  },
+  {
+    "name": "Whiplash",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 551
+  },
+  {
+    "name": "Fuzz Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 552
+  },
+  {
+    "name": "Burning Rubber",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 553
+  },
+  {
+    "name": "Side Kick",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 554
+  },
+  {
+    "name": "Blockade",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 555
+  },
+  {
+    "name": "Stun Gun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 556
+  },
+  {
+    "name": "Tornado",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 557
+  },
+  {
+    "name": "Thor's Hammer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 558
+  },
+  {
+    "name": "Stampede",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 559
+  },
+  {
+    "name": "Hot Coals",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 560
+  },
+  {
+    "name": "Fizz Bombs",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 561
+  },
+  {
+    "name": "Graviton",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 562
+  },
+  {
+    "name": "Shield",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 412
+  },
+  {
+    "name": "Firefly",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 563
+  },
+  {
+    "name": "Glue Storm",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 564
+  },
+  {
+    "name": "Glue Gun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 565
+  },
+  {
+    "name": "Run 'n' Gun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 566
+  },
+  {
+    "name": "Scorcher",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 567
+  },
+  {
+    "name": "Saucer Attack",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 568
+  },
+  {
+    "name": "Tractor Beam",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 436
+  },
+  {
+    "name": "Smoke Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 569
+  },
+  {
+    "name": "Nanobots",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 570
+  },
+  {
+    "name": "Phase Missile",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 571
+  },
+  {
+    "name": "Gyro Glue",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 572
+  },
+  {
+    "name": "Warp Gate",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 573
+  },
+  {
+    "name": "Tesla Coil",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 574
+  },
+  {
+    "name": "Magic Beans",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 575
+  },
+  {
+    "name": "Grab Bag",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 576
+  },
+  {
+    "name": "Railgun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 408
+  },
+  {
+    "name": "Sand Storm",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 577
+  },
+  {
+    "name": "Lemon",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 423
+  },
+  {
+    "name": "Acid Bombs",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 426
+  },
+  {
+    "name": "Chroma Blaster",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 578
+  },
+  {
+    "name": "Cauldron",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 579
+  },
+  {
+    "name": "Zipper",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 580
+  },
+  {
+    "name": "Bubble Wrap",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 434
+  },
+  {
+    "name": "Chalk Dust",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 581
+  },
+  {
+    "name": "Mower",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 582
+  },
+  {
+    "name": "Trailblazer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 583
+  },
+  {
+    "name": "Bulldozer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 584
+  },
+  {
+    "name": "Lead Balloon",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 585
+  },
+  {
+    "name": "Dive Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 586
+  },
+  {
+    "name": "Toaster",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 587
+  },
+  {
+    "name": "Time Bomb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 588
+  },
+  {
+    "name": "Burn Barrel",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 589
+  },
+  {
+    "name": "Char",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 590
+  },
+  {
+    "name": "Pop Rocket",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 591
+  },
+  {
+    "name": "Sky Strike",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 592
+  },
+  {
+    "name": "Power Washer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 593
+  },
+  {
+    "name": "Cheap Shot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 435
+  },
+  {
+    "name": "Blackout",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 594
+  },
+  {
+    "name": "Space Laser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 595
+  },
+  {
+    "name": "Bunker Buster",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 438
+  },
+  {
+    "name": "Bushwhack",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 596
+  },
+  {
+    "name": "Repeater",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 597
+  },
+  {
+    "name": "Puddle Jumper",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 598
+  },
+  {
+    "name": "Elevator",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 599
+  },
+  {
+    "name": "Breakout",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 600
+  },
+  {
+    "name": "Orbiter",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 601
+  },
+  {
+    "name": "Bouncy Tunnel",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 602
+  },
+  {
+    "name": "Barrage",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 603
+  },
+  {
+    "name": "Fire Hose",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 604
+  },
+  {
+    "name": "Bumpers",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 605
+  },
+  {
+    "name": "Web",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 606
+  },
+  {
+    "name": "Blowtorch",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 607
+  },
+  {
+    "name": "Mudslide",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 608
+  },
+  {
+    "name": "Party Popper",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 609
+  },
+  {
+    "name": "Torpedo",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 610
+  },
+  {
+    "name": "Dazzler",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 611
+  },
+  {
+    "name": "Trick Shot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 612
+  },
+  {
+    "name": "Glue Stick",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 613
+  },
+  {
+    "name": "Bubble Blast",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 614
+  },
+  {
+    "name": "Spectra Laser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 615
+  },
+  {
+    "name": "Leap Frog",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 616
+  },
+  {
+    "name": "Cluster Bombs",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 617
+  },
+  {
+    "name": "Showdown",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 618
+  },
+  {
+    "name": "Corkscrew",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 619
+  },
+  {
+    "name": "Booster Rocket",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 620
+  },
+  {
+    "name": "Hedge",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 621
+  },
+  {
+    "name": "Quicksand",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 622
+  },
+  {
+    "name": "Laser Tracer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 623
+  },
+  {
+    "name": "Shock Wave",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 624
+  },
+  {
+    "name": "Gummy Worms",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 625
+  },
+  {
+    "name": "Jump Rope",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 626
+  },
+  {
+    "name": "Super Funnel",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 627
+  },
+  {
+    "name": "Bunker",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 628
+  },
+  {
+    "name": "Ice Crush",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 629
+  },
+  {
+    "name": "Liquid Nitrogen",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 630
+  },
+  {
+    "name": "Flash Freeze",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 631
+  },
+  {
+    "name": "Avalanche",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 632
+  },
+  {
+    "name": "Snow Drift",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 633
+  },
+  {
+    "name": "Bonfire",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 634
+  },
+  {
+    "name": "Eruption",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 635
+  },
+  {
+    "name": "Blaze",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 636
+  },
+  {
+    "name": "Heat Lamp",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 637
+  },
+  {
+    "name": "Zinger",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 638
+  },
+  {
+    "name": "Space Cannon",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 639
+  },
+  {
+    "name": "Pulsar",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 640
+  },
+  {
+    "name": "Scrambler",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 641
+  },
+  {
+    "name": "Laser Grenade",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 642
+  },
+  {
+    "name": "Gyrobots",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 643
+  },
+  {
+    "name": "Badger",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 644
+  },
+  {
+    "name": "Pot o' Gold",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 645
+  },
+  {
+    "name": "Crackdown",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 646
+  },
+  {
+    "name": "Glacier",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 647
+  },
+  {
+    "name": "Paddle Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 648
+  },
+  {
+    "name": "Tidal Wave",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 649
+  },
+  {
+    "name": "Pounder",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 650
+  },
+  {
+    "name": "Frostbite",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 651
+  },
+  {
+    "name": "Explode-a-Tron",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 652
+  },
+  {
+    "name": "Excavator",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 653
+  },
+  {
+    "name": "Plasma Orb",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 654
+  },
+  {
+    "name": "Bubble Gun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 655
+  },
+  {
+    "name": "Star Cruiser",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 656
+  },
+  {
+    "name": "Lock Box",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 657
+  },
+  {
+    "name": "Carbon Crawler",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 658
+  },
+  {
+    "name": "Energy Spike",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 659
+  },
+  {
+    "name": "Laser Net",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 660
+  },
+  {
+    "name": "Tachyon Beam",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 661
+  },
+  {
+    "name": "Fire Wall",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 662
+  },
+  {
+    "name": "Freeze Ray",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 437
+  },
+  {
+    "name": "Buzzbots",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 663
+  },
+  {
+    "name": "Wildfire",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 664
+  },
+  {
+    "name": "Robotic Worm",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 665
+  },
+  {
+    "name": "Hot Spring",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 666
+  },
+  {
+    "name": "Mirror Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 667
+  },
+  {
+    "name": "Twist Rockets",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 668
+  },
+  {
+    "name": "Black Forest",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 433
+  },
+  {
+    "name": "Rubber Paint",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 669
+  },
+  {
+    "name": "Yo-yo",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 670
+  },
+  {
+    "name": "Cavern",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 671
+  },
+  {
+    "name": "Toy Hammer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 672
+  },
+  {
+    "name": "Glitter Gun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 673
+  },
+  {
+    "name": "Beach Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 674
+  },
+  {
+    "name": "Bounce House",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 675
+  },
+  {
+    "name": "Lollipop",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 676
+  },
+  {
+    "name": "Cyclone",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 677
+  },
+  {
+    "name": "Slingshot",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 678
+  },
+  {
+    "name": "Hot Seat",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 679
+  },
+  {
+    "name": "Rapids",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 680
+  },
+  {
+    "name": "Slammer",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 681
+  },
+  {
+    "name": "Blender",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 682
+  },
+  {
+    "name": "Robot Blimps",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 683
+  },
+  {
+    "name": "Slime Ball",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 684
+  },
+  {
+    "name": "Paintball Gun",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 685
+  },
+  {
+    "name": "Whirlwind",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 686
+  },
+  {
+    "name": "Phoenix",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 687
+  },
+  {
+    "name": "Sneak Attack",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 688
+  },
+  {
+    "name": "Pipeline",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 689
+  },
+  {
+    "name": "Magnet",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 422
+  },
+  {
+    "name": "Super Magnet",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 690
+  },
+  {
+    "name": "Quantum Cube",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 691
+  },
+  {
+    "name": "Missile Turret",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 692
+  },
+  {
+    "name": "Ion Cannon",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 693
+  },
+  {
+    "name": "Backtrack",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 694
+  },
+  {
+    "name": "Oil Slick",
+    "status": "adaptation",
+    "source": "https://classic.blitwise.com/ptanksdepot.html",
+    "weaponId": 439
+  }
+]

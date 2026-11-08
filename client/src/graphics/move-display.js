@@ -1,3 +1,4 @@
+import { drawPanel } from './panel';
 import { HUD } from "../classes/HUD"
 
 /**
@@ -5,17 +6,7 @@ import { HUD } from "../classes/HUD"
  */
 
 const drawMoveFrame = (ctx, width, height, scene) => {
-    ctx.fillStyle = 'rgba(200,200,200,1)'
-    ctx.fillRect(0, 0, width, height * 4/9)
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.fillRect(0, height * 4/9, width, height)
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.textAlign = 'center'
-    ctx.font = '500 18px Arial'
-    if (!scene.game.device.os.desktop){
-        ctx.font = '500 26px Arial'
-    }
-    ctx.fillText('Move', width/2, height * 2.3/7)
+    drawPanel(ctx, width, height, 'Drive', 18);
 }
 
 
@@ -24,35 +15,9 @@ const drawMoveFrame = (ctx, width, height, scene) => {
  */
 
 const drawArrow = (ctx, width, height, angle, scene) => {
-    var txt =  String.fromCharCode(0x25B6)
-    //var strokeThickness = 4
-    if (angle === Math.PI) txt = String.fromCharCode(0x25C0)
-    ctx.fillStyle = 'rgba(200,200,200,1)'
-    ctx.strokeStyle = 'rgba(160,160,160,1)'
-
-    if (angle === Math.PI) {
-        ctx.moveTo(width, 0)
-        ctx.ellipse(width, height/2, width/2, width/2, 0, -Math.PI/2, Math.PI * 1/2, true)
-    }
-    if (angle === 0) {
-        ctx.moveTo(0, 0)
-        ctx.ellipse(0, height/2, width/2, width/2, 0, -Math.PI/2, Math.PI/2)
-    }
-    ctx.closePath()
-    ctx.fill()
-    ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgba(0,0,0,1)'
-    ctx.font = '500 18px Arial'
-    if (!scene.game.device.os.desktop){
-        ctx.font = '500 26px Arial'
-    }
-
-    if (angle === Math.PI) {
-        ctx.fillText(txt, width * 9/12, height * 5/8)
-    }
-    if (angle === 0) {
-        ctx.fillText(txt, width * 3/12, height * 5/8)
-    }
+    drawPanel(ctx,width,height);
+    ctx.fillStyle='#c8d9cd'; ctx.textAlign='center'; ctx.font='18px Arial';
+    ctx.fillText(angle === Math.PI ? '‹' : '›',width/2,height*.72);
 }
 
 

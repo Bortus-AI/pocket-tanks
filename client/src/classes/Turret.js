@@ -11,7 +11,7 @@ export class Turret extends GameObjects.Sprite {
     constructor (scene, tank, id) {
         var canvas = document.createElement('canvas');
         canvas.height = 32 // turret height
-        canvas.width = 2  // turret width
+        canvas.width = 6  // turret width
         
         if (scene.textures.exists('turret' + id)) scene.textures.remove('turret' + id)
         scene.textures.addCanvas('turret' + id, canvas);
@@ -42,11 +42,26 @@ export class Turret extends GameObjects.Sprite {
 
     create = () => {
         var ctx = this.canvas.getContext('2d')
-        ctx.fillStyle = 'rgba(200,200,200,1)'
-    
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height/2)
+        const steel = ctx.createLinearGradient(1, 0, 5, 0)
+        steel.addColorStop(0, '#304c51')
+        steel.addColorStop(.45, '#b4c8b9')
+        steel.addColorStop(1, '#405e5c')
+        ctx.fillStyle = steel
+        ctx.fillRect(1.5, 0, 3, this.canvas.height/2)
+        ctx.fillStyle = '#263f44'
+        ctx.fillRect(.5, 0, 5, 3)
+        ctx.fillStyle = '#bed4bf'
+        ctx.fillRect(1, 3, 4, 1)
+        this.scene.textures.get('turret' + this.id).refresh()
 
-        socket.on('opponentAngleChange', ({rotation}) => {
+        // Socket handlers must leave with the sprite when a saved match is parked.
+        const onOnlineEvent = (event, handler) => {
+            socket.on(event, handler)
+            this.once('destroy', () => socket.off(event, handler))
+        }
+
+        onOnlineEvent('opponentAngleChange', ({rotation}) => {
+            if(this.scene?.sceneData?.gameType!==3)return
             if (this.tank.active && this.tank === this.scene.tank2) {
                 this.aimRotation = rotation
 
@@ -136,8 +151,24 @@ export class Turret extends GameObjects.Sprite {
 
 
 
+    // Clearing (or replacing) the active weapon ends that shot: its shutdown
+    // listener, timers and per-shot textures are released exactly once.
+    get activeWeapon() {
+        return this._activeWeapon ?? null
+    }
+
+    set activeWeapon(weapon) {
+        const previous = this._activeWeapon ?? null
+        this._activeWeapon = weapon ?? null
+        if (previous && previous !== this._activeWeapon) previous.finish?.()
+    }
+
+
+
     shoot = (selectedWeapon) => {
-        this.activeWeapon = new Weapon(this.scene, this.tank, selectedWeapon) 
+        const weapon = new Weapon(this.scene, this.tank, selectedWeapon)
+        // A weapon whose create() failed has already cleaned itself up.
+        this.activeWeapon = weapon.finished ? null : weapon
     }
 
 

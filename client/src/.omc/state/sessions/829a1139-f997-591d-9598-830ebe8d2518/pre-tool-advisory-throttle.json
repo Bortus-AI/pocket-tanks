@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "entries": {
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1794168987509,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1794168411290,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "4ff176851748ea686421169af88724b27173d35dc40e899fce35eb56f580b61a": {
+      "last_emitted_at_ms": 1794168395693,
+      "message": "Spawning agent: general-purpose (inherit) [BACKGROUND] | Task: Audit classic adaptation weapons"
+    },
+    "49414ac51b421ce810add406f15f71150fbbcefbb5c1a121c33aaaaa3ffe3086": {
+      "last_emitted_at_ms": 1794168395682,
+      "message": "Spawning agent: general-purpose (inherit) [BACKGROUND] | Task: Audit weapon visual effects"
+    },
+    "dd136dd1d5092b314075ddfea80915ab3f723a3ff2a6368c246395c904ec5bfe": {
+      "last_emitted_at_ms": 1794168395675,
+      "message": "Spawning agent: general-purpose (inherit) [BACKGROUND] | Task: Audit expansion weapon catalog"
+    },
+    "be6b981c8fce22489ae0217fa127ab124e7bbca9cdf69d0d805ab807061929a7": {
+      "last_emitted_at_ms": 1794168395662,
+      "message": "Spawning agent: general-purpose (inherit) [BACKGROUND] | Task: Audit legacy Standard weapons"
+    }
+  },
+  "updated_at": "2026-11-08T20:16:27.509Z"
+}

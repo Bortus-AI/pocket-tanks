@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { installFullscreenControl } from './graphics/fullscreen-control';
+import { installViewportResize } from './graphics/viewport-resize';
 import { socket } from './socket/index'
 import { MainScene, Scene1, Scene2, Scene3, Scene4, Scene5, LoadingScene, ControlsScene, AboutScene, GuideScene, ScreenshotScene } from './scenes';
 
@@ -54,12 +56,15 @@ import { MainScene, Scene1, Scene2, Scene3, Scene4, Scene5, LoadingScene, Contro
 
 const gameConfig = {
 	title: 'Pocket Tanks',
-  type: Phaser.CANVAS,
+  // WebGL only: the weapon art, tints and effects are authored for WebGL and there is no Canvas fallback.
+  type: Phaser.WEBGL,
   parent: 'game',
   backgroundColor: 'rgba(255,100,100)',
   scale: {
     mode: Phaser.Scale.ScaleModes.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    // Keep native aiming and reconnect controls in the fullscreen view too.
+    fullscreenTarget: document.documentElement,
     width: 1200,
     height: 800,
   },
@@ -71,12 +76,14 @@ const gameConfig = {
     fps: 60
   },
   render: {
-    antialiasGL: false,
-    pixelArt: true,
+    antialias: true,
+    antialiasGL: true,
+    pixelArt: false,
     transparent: true,
   },
   callbacks: {
-    postBoot: () => {
+    postBoot: game => {
+      installViewportResize(game);
     },
   },
   autoFocus: true,
@@ -100,13 +107,34 @@ window.sdk = ''
 
 
 window.socket = socket
-window.game = new Phaser.Game(gameConfig);
+const supportsWebGL = () => {
+  try {
+    const probe = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (probe.getContext('webgl2') || probe.getContext('webgl') || probe.getContext('experimental-webgl')));
+  } catch (error) {
+    return false;
+  }
+};
+
+if (supportsWebGL()) {
+  window.game = new Phaser.Game(gameConfig);
+  installFullscreenControl(window.game);
+} else {
+  const parent = document.getElementById('game') || document.body;
+  const notice = document.createElement('div');
+  notice.id = 'webgl-required';
+  notice.setAttribute('role', 'alert');
+  notice.style.cssText = 'max-width:32rem;margin:15vh auto;padding:1.5rem;font:16px/1.5 system-ui,sans-serif;color:#f4efe6;background:#1d2b30;border-radius:12px;text-align:center';
+  notice.textContent = 'Pocket Tanks needs WebGL. Enable hardware acceleration in your browser settings or try a different browser, then reload this page.';
+  parent.append(notice);
+}
 
 window.addEventListener("wheel", (event) => event.preventDefault(), {
   passive: false,
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
   if (["ArrowUp", "ArrowDown", " "].includes(event.key)) {
     event.preventDefault();
   }

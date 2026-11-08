@@ -1,3 +1,6 @@
+import { weaponArray } from '../weapons/array';
+import { shortWeaponDescription } from '../weapons/expansion/weapon-details';
+import { tankState } from '../weapons/expansion/tactics';
 import { Textures, Display } from "phaser";
 import { ScrollList } from "./ScrollList";
 import { socket } from "../socket";
@@ -6,6 +9,7 @@ import { createPowerDisplay } from "../graphics/power-display";
 import { createAngleDisplay } from "../graphics/angle-display";
 import { createWeaponDisplay } from "../graphics/weapon-display";
 import { createMoveDisplay } from "../graphics/move-display";
+import { createMobileAimControls } from '../graphics/mobile-aim-controls';
 
 export class HUD extends Textures.CanvasTexture {
 
@@ -21,10 +25,11 @@ export class HUD extends Textures.CanvasTexture {
         canvas.height = height
         canvas.width = width
         if (scene.textures.exists('hud')) scene.textures.remove('hud')
-        scene.textures.addCanvas('hud', canvas);
-        scene.add.image(width/2, height/2, 'hud').setDepth(4);
-
         super(scene.textures, 'hud', canvas, canvas.width, canvas.height)
+
+        scene.textures.list.hud = this
+        scene.textures.emit('addtexture', 'hud', this)
+        scene.add.image(width/2, height/2, 'hud').setDepth(4)
 
         this.canvas = canvas
         this.scene = scene
@@ -50,13 +55,17 @@ export class HUD extends Textures.CanvasTexture {
 
 
     create = () => {
+        const existingObjects = new Set(this.scene.children.list)
         var width = this.width
         var height = this.height
     
         var ctx = this.canvas.getContext('2d')
 
         //ctx.fillStyle = 'rgba(40,40,40,1)'
-        ctx.fillStyle = 'rgba(0,0,0,1)'
+        const consoleFill = ctx.createLinearGradient(0, height * 2/3, 0, height)
+        consoleFill.addColorStop(0, '#1b343d')
+        consoleFill.addColorStop(1, '#0b1e28')
+        ctx.fillStyle = consoleFill
     
         ctx.moveTo(0, height)
         ctx.lineTo(0, height * 2/3)
@@ -65,19 +74,27 @@ export class HUD extends Textures.CanvasTexture {
         ctx.closePath()
         ctx.fill()
 
+        ctx.fillRect(0, height * 2/3, width, height/3)
+        ctx.fillStyle = '#729c96'
+        ctx.fillRect(0, height * 2/3, width, 2)
         createFireButton(this)
         createPowerDisplay(this)
         createWeaponDisplay(this)
         createMoveDisplay(this)
         createAngleDisplay(this)
         this.createOverlay()
+        this.weaponDescription = this.scene.add.text(190, this.height - 39, '', {
+            fontFamily: 'Arial', fontSize: this.scene.game.device.os.desktop ? 14 : 16,
+            color: '#b9cec5', wordWrap: {width: this.width - 260, useAdvancedWrap: true},
+        }).setLineSpacing(2).setDepth(101)
+        this.weaponDescriptionKey = null
 
-        var name1 = this.scene.add.text(0, 0, this.scene.tank1.name).setFontSize(30).setFontFamily('"Days One"')
-        this.scoreDisplay1 = this.scene.add.text(0, 35, this.scene.tank1.score)
-        var name2 = this.scene.add.text(this.width, 0, this.scene.tank2.name).setFontSize(30).setFontFamily('"Days One"').setOrigin(1, 0)
-        this.scoreDisplay2 = this.scene.add.text(this.width, 35, this.scene.tank2.score)
-        this.scoreDisplay1.setOrigin(0, 0).setFontSize(30).setFontFamily('"Days One"')
-        this.scoreDisplay2.setOrigin(1, 0).setFontSize(30).setFontFamily('"Days One"')
+        var name1 = this.scene.add.text(24, 18, this.scene.tank1.name).setFontSize(23).setFontFamily('Arial')
+        this.scoreDisplay1 = this.scene.add.text(24, 48, this.scene.tank1.score)
+        var name2 = this.scene.add.text(this.width - 24, 18, this.scene.tank2.name).setFontSize(23).setFontFamily('Arial').setOrigin(1, 0)
+        this.scoreDisplay2 = this.scene.add.text(this.width - 24, 48, this.scene.tank2.score)
+        this.scoreDisplay1.setOrigin(0, 0).setFontSize(23).setFontFamily('Arial')
+        this.scoreDisplay2.setOrigin(1, 0).setFontSize(23).setFontFamily('Arial')
 
         name1.setColor(this.scene.tank1.color)
         name2.setColor(this.scene.tank2.color)
@@ -89,7 +106,15 @@ export class HUD extends Textures.CanvasTexture {
         strokeText(this.scoreDisplay1, 4)
         strokeText(this.scoreDisplay2, 4)
     
-        this.update()
+        this.tacticalLabels = [
+            this.scene.add.text(24, 79, '', {fontFamily:'Arial',fontSize:12,color:'#a8d9ce'}).setDepth(6),
+            this.scene.add.text(this.width - 24, 79, '', {fontFamily:'Arial',fontSize:12,color:'#a8d9ce'}).setOrigin(1,0).setDepth(6)
+        ]
+        this.legacyControls = this.scene.children.list.filter(object => !existingObjects.has(object) && object.y >= this.height * 2/3)
+        this.mobileAim = createMobileAimControls(this)
+        // HUD.refresh is the control-state method below. Upload the painted
+        // console explicitly instead of dispatching through that override.
+        Textures.CanvasTexture.prototype.refresh.call(this)
 
         // this.scene.input.mouse.onMouseDown = () => {
         //     if (this.scene.input.mouse.locked && this.weaponScrollList.visible === true) {
@@ -120,6 +145,7 @@ export class HUD extends Textures.CanvasTexture {
 
     
     reset = () => {
+        this.refreshWeaponDescription()
         if (this.scene.activeTank === 1) {
             this.powerDisplayText.setText(this.scene.tank1.power)
             this.weaponName.setText(this.scene.tank1.weapons[this.scene.tank1.selectedWeapon]?.name)
@@ -136,6 +162,22 @@ export class HUD extends Textures.CanvasTexture {
 
 
 
+    refreshWeaponDescription = () => {
+        const tank = this.scene.activeTank === 2 ? this.scene.tank2 : this.scene.tank1
+        const selected = tank?.weapons?.[tank.selectedWeapon]
+        const selectedId = tank?.turret?.activeWeapon?.id ?? selected?.id
+        const key = `${this.scene.activeTank}:${selectedId ?? 'none'}`
+        if (key === this.weaponDescriptionKey) return
+        this.weaponDescriptionKey = key
+        const text = selectedId !== undefined ? shortWeaponDescription(weaponArray[selectedId]) : 'No weapons remaining.'
+        this.weaponDescription.setFontSize(this.scene.game.device.os.desktop ? 14 : 16)
+        this.weaponDescription.setText(text)
+        // A few long labels need a smaller font to remain inside the HUD strip.
+        while (this.weaponDescription.height > 36 && parseInt(this.weaponDescription.style.fontSize, 10) > 12) {
+            this.weaponDescription.setFontSize(parseInt(this.weaponDescription.style.fontSize, 10) - 1)
+        }
+    }
+
     disable = () => {
         this.overlay.visible = true
     }
@@ -148,6 +190,14 @@ export class HUD extends Textures.CanvasTexture {
 
 
     refresh = () => {
+        this.refreshWeaponDescription()
+        ;[this.scene.tank1, this.scene.tank2].forEach((tank, index) => {
+            const state = tankState(tank)
+            this.tacticalLabels[index].setText([
+                state.shield > 0 ? `SHIELD ${state.shield}` : '', state.frost ? 'FROZEN' : '', state.foam ? 'FOAMED' : '',
+                state.acid ? 'CORRODED' : '', state.marked ? 'MARKED' : ''
+            ].filter(Boolean).join(' · '))
+        })
         var angle = 0
         if (this.scene.activeTank === 1) {
             angle = (180 - this.scene.tank1.turret.angle) - 90
@@ -198,12 +248,15 @@ export class HUD extends Textures.CanvasTexture {
             this.disable()
         }
 
+        if (this.shotRequestPending || this.scene.exitMenuContent) this.disable()
+
         this.scoreDisplay1.setText(this.scene.tank1.score)
         this.scoreDisplay2.setText(this.scene.tank2.score)
 
         this.weaponScrollDisplay.update()
         this.powerMeter.refresh()
         this.crossAir.refresh()
+        this.mobileAim?.refresh()
     }
 }
 

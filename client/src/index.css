@@ -16,9 +16,7 @@ code {
 }
 
 canvas {
-  image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-crisp-edges;
-  image-rendering: pixelated;
+  image-rendering: auto;
   background-color: black;
 }
 
@@ -30,3 +28,48 @@ background-image: linear-gradient(rgba(0, 0, 0, 1), rgb(120, 20, 140))
 
 cursor: url('./cursor.svg'), auto;
 */
+
+html, body { width: 100%; height: 100%; overflow: hidden; }
+#root { display: contents; }
+#game { width: 100%; height: 100%; }
+body { background: #09171e; }
+canvas { outline: 1px solid #29434a; }
+
+#mobile-aim-controls {
+  position: fixed; z-index: 900; box-sizing: border-box;
+  padding: 4px; background: #102a35; color: #edf3e9; font: 16px Arial, sans-serif;
+  border-top: 1px solid #6a9e98;
+}
+#mobile-aim-controls[hidden] { display: none !important; }
+#mobile-aim-controls button, #mobile-aim-controls input, #mobile-aim-controls select {
+  box-sizing: border-box; min-width: 0; height: 44px; border-radius: 6px;
+  border: 1px solid #6a9e98; color: #edf3e9; background: #23434c; font: inherit;
+  touch-action: manipulation;
+}
+#mobile-aim-controls button { font-weight: bold; cursor: pointer; }
+#mobile-aim-controls button:active { background: #416961; }
+#mobile-aim-controls :disabled { opacity: .45; cursor: default; }
+#mobile-aim-controls :focus-visible { outline: 2px solid #e7b17b; outline-offset: 1px; }
+.mobile-combat-toolbar { display: grid; grid-template-columns: minmax(72px, 1fr) 44px 44px 44px 72px; gap: 6px; }
+.mobile-combat-toolbar.has-fullscreen-control { grid-template-columns: minmax(40px, 1fr) 44px 44px 44px 44px 64px; gap: 4px; }
+.mobile-combat-toolbar select { width: 100%; padding: 0 4px; font-size: 14px !important; }
+#mobile-aim-controls .mobile-aim-fire { background: #e7b17b; border-color: #e7b17b; color: #152f37; }
+.mobile-aim-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+#mobile-aim-controls.compact .mobile-aim-rows { grid-template-columns: 1fr; gap: 6px; }
+.mobile-aim-row { display: grid; grid-template-columns: 48px 44px minmax(24px, 1fr) 44px; gap: 4px; align-items: center; }
+.mobile-aim-value { position: relative; height: 44px; }
+.mobile-aim-value label { position: absolute; top: 3px; left: 0; width: 100%; text-align: center; font-size: 9px; color: #bad4c9; text-transform: uppercase; }
+.mobile-aim-value input { width: 100%; padding: 14px 2px 0; text-align: center; color: #f6d2aa !important; background: #081e28 !important; appearance: textfield; }
+.mobile-aim-value input::-webkit-inner-spin-button, .mobile-aim-value input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.mobile-aim-row button { font-size: 23px !important; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none !important; }
+.mobile-aim-row input[type=range] { width: 100%; margin: 0; accent-color: #83d2bd; touch-action: none !important; border: 0 !important; background: transparent !important; }
+.mobile-combat-description { margin-top: 4px; font-size: 11px; height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c4d8cb; }
+#mobile-aim-controls.dense { padding: 1px; }
+#mobile-aim-controls.dense .mobile-aim-rows { margin-top: 4px; }
+#mobile-aim-controls.dense .mobile-combat-description { display: none; }
+@media (max-height: 360px) { #mobile-aim-controls { padding: 1px; } .mobile-aim-rows { margin-top: 4px; } .mobile-combat-description { display: none; } }
+
+#game-fullscreen-toggle { box-sizing: border-box; border: 1px solid #6a9e98; border-radius: 6px; color: #edf3e9; background: #23434c; font: 23px Arial, sans-serif; cursor: pointer; touch-action: manipulation; }
+#game-fullscreen-toggle:focus-visible { outline: 2px solid #e7b17b; }
+#game-fullscreen-toggle.fullscreen-standalone { position: fixed; z-index: 950; }
+#game-fullscreen-toggle.fullscreen-recovery { display: block; width: 100%; min-height: 44px; margin-top: 12px; }

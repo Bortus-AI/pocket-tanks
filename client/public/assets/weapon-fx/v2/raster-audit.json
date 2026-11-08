@@ -1,0 +1,42 @@
+{
+  "all": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "impactAlpha": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "phone": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "impact": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "body": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "trail": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "residue": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "muzzle": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "beam": {
+    "unique": 770,
+    "duplicates": []
+  },
+  "debris": {
+    "unique": 770,
+    "duplicates": []
+  }
+}

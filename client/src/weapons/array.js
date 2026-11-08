@@ -1,4 +1,10 @@
+import { classicAdaptations, earlyClassicAdaptations } from './expansion/classics';
+import { laterClassicAdaptations, modernClassicAdaptations } from './expansion/later-classics';
+import { makeClassicWeapon } from './expansion/classic-runtime';
+import { expansionCatalog } from './expansion/catalog';
+import { makeExpansionWeapon } from './expansion/runtime';
 import * as Allweapons from './packs/Standard/Standard'
+import { MAX_PINNED_WEAPON_ID, stableWeaponId } from './weapon-ids';
 
 export const weaponArray = []
 
@@ -91,3 +97,24 @@ weaponArray[scattershot.id] = scattershot
 
 const cruiser = new Allweapons.cruiser()
 weaponArray[cruiser.id] = cruiser
+
+expansionCatalog.forEach(definition => { weaponArray[definition.id] = makeExpansionWeapon(definition); });
+
+// Classic adaptations take their ID from the committed manifest, never from
+// their position in a pack. Unknown (newly authored) names are appended after
+// the highest pinned ID in pack order; ids.test.js fails until they are pinned.
+const normalizeName = name => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const returningNames = new Set(weaponArray.map(weapon => normalizeName(weapon.name)));
+export const unpinnedWeaponNames = [];
+let nextUnpinnedId = MAX_PINNED_WEAPON_ID + 1;
+[classicAdaptations, earlyClassicAdaptations, laterClassicAdaptations, modernClassicAdaptations].forEach(pack => {
+    pack.forEach(definition => {
+        const key = normalizeName(definition.name);
+        if (returningNames.has(key)) return;
+        returningNames.add(key);
+        let id = stableWeaponId(definition.name);
+        if (id === undefined) { id = nextUnpinnedId++; unpinnedWeaponNames.push(definition.name); }
+        if (weaponArray[id]) throw new Error(`Weapon ID ${id} is assigned to both ${weaponArray[id].name} and ${definition.name}`);
+        weaponArray[id] = makeClassicWeapon({...definition, id});
+    });
+});

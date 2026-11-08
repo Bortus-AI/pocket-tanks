@@ -26,7 +26,7 @@
     -->
     <title>Pocket Tanks</title>
     <script>
-      kongregateAPI.loadAPI(function(){
+      if (window.kongregateAPI) kongregateAPI.loadAPI(function(){
         window.kongregate = kongregateAPI.getAPI();
       });
     </script>
@@ -37,6 +37,7 @@
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root">
     </div>
+    <div id="game"></div>
     
     <!--
       This HTML file is a template.

@@ -1,4 +1,12 @@
+import { addImpact } from '../graphics/impact';
+import { emitWeaponImpact } from '../graphics/weapon-fx';
+import { legacyWeaponStyle, sourceWeapon } from '../graphics/legacy-weapon-style';
+import { reducedMotion } from '../graphics/motion';
+import { playThrottledSample } from '../audio/weapon-audio';
+import { applyLegacyAftermath } from '../weapons/expansion/unique-mechanics';
 import Phaser from "phaser"
+
+let blastTextureCounter = 0
 
 export class Blast {
     /**
@@ -16,6 +24,12 @@ export class Blast {
         this.scene = scene
         this.count = 0
         this.blastType = blastType
+        // Only the weapon that produced this blast (matched through blastType)
+        // owns its aftermath and art; a delayed blast may land on a later turn.
+        const {weapon: activeWeapon} = sourceWeapon(scene, blastType)
+        this.originalWeapon = activeWeapon?.id < 30 ? activeWeapon : null
+        this.cacheable = blastType !== undefined && blastType !== null && blastType !== ''
+        this.aftermathApplied = false
         
         this.terrain = scene.terrain
         this.maxRadius = Math.max(radius, 1)
@@ -24,13 +38,12 @@ export class Blast {
         this.thickness = 0
         this.x = x
         this.y = y
-        this.canvas = document.createElement('canvas')
-        this.canvas.width = this.maxRadius * 2
-        this.canvas.height = this.maxRadius * 2
-        this.textureId = Math.random().toString(32).slice(2, 7)
-        
-        this.scene.textures.addCanvas(this.textureId, this.canvas)
-        this.image = this.scene.add.image(this.x, this.y, this.textureId).setOrigin(0.5, 0.5)
+        this.canvas = null
+        this.texture = null
+        this.textureId = null
+        this.image = null
+        this.disposed = false
+        this.reducedMotion = reducedMotion()
 
         this.gradient = null
         this.circles = []
@@ -40,6 +53,60 @@ export class Blast {
         this.soundConfig = data.soundConfig
 
         this.init()
+        // Keep the old blast mask and its timing for terrain/knockback, but let
+        // the compositor draw fire, debris, smoke, shards, and energy instead of
+        // displaying the old expanding gradient ring. The wav above stays the
+        // weapon's voice; the compositor layers its procedural signature.
+        this.modernPresentation = !!emitWeaponImpact(scene, x, y, radius, {...legacyWeaponStyle(scene, blastType), audio: 'layer'})
+        if (!this.modernPresentation) {
+            this.createTexture()
+            addImpact(scene, x, y, radius, {audio: false})
+        }
+        this.onShutdown = () => this.dispose()
+        scene.events?.once?.('shutdown', this.onShutdown)
+    }
+
+    // The gradient canvas only exists for the legacy presentation path.
+    createTexture = () => {
+        this.canvas = document.createElement('canvas')
+        this.canvas.width = this.maxRadius * 2
+        this.canvas.height = this.maxRadius * 2
+        this.textureId = `legacy-blast-${++blastTextureCounter}`
+        if (this.scene.textures.exists?.(this.textureId)) this.scene.textures.remove(this.textureId)
+        this.texture = this.scene.textures.addCanvas(this.textureId, this.canvas)
+        this.image = this.scene.add.image(this.x, this.y, this.textureId).setOrigin(0.5, 0.5)
+        if (this.reducedMotion) this.image.setAlpha?.(.45)
+    }
+
+    // Reduced motion: redraw the legacy gradient every third step only.
+    skipGradientFrame = () => this.reducedMotion && this.outerRadius % 3 !== 0
+
+    refreshTexture = () => { this.texture?.refresh?.() }
+
+    playSound = () => {
+        if (!this.soundEffect) return
+        const config = this.soundConfig ? {...this.soundConfig} : {}
+        if (Number.isFinite(config.volume)) config.volume = Math.min(1, Math.max(0, config.volume))
+        playThrottledSample(this.scene, this.soundEffect, config)
+    }
+
+    finish = () => {
+        this.innerRadius = this.maxRadius
+        this.terrain.fixTerrain(this.x, this.y, this.maxRadius)
+        this.toRemove = true
+        this.dispose()
+    }
+
+    dispose = () => {
+        if (this.disposed) return
+        this.disposed = true
+        this.scene.events?.off?.('shutdown', this.onShutdown)
+        if (this.image) this.image.destroy(true)
+        if (this.textureId && this.scene.textures?.exists?.(this.textureId)) this.scene.textures.remove(this.textureId)
+        if (this.canvas) this.canvas.width = this.canvas.height = 1
+        this.image = null
+        this.texture = null
+        this.canvas = null
     }
 
 
@@ -47,24 +114,18 @@ export class Blast {
         if (this.animationType === 1) {
             this.gradient = this.data.gradient
             this.thickness = this.data.thickness
-            if (this.soundEffect) {
-                this.scene.sound.play(this.soundEffect, this.soundConfig)
-            }
+            this.playSound()
         }
         if (this.animationType === 2) {
             this.circles = this.data.circles
             this.thickness = this.data.thickness
-            if (this.soundEffect) {
-                this.scene.sound.play(this.soundEffect, this.soundConfig)
-            }
+            this.playSound()
         }
         if (this.animationType === 3) {
             this.circles = this.data.circles
             this.thickness = this.data.thickness
             this.variableRadius = this.maxRadius
-            if (this.soundEffect) {
-                this.scene.sound.play(this.soundEffect, this.soundConfig)
-            }
+            this.playSound()
         }
     }
 
@@ -78,6 +139,10 @@ export class Blast {
         }
         if (this.animationType === 3) {
             this.updateType3()
+        }
+        if (this.toRemove && !this.aftermathApplied && this.originalWeapon) {
+            this.aftermathApplied = true
+            applyLegacyAftermath(this.originalWeapon, {x:this.x,y:this.y,radius:this.maxRadius})
         }
     }
 
@@ -138,18 +203,16 @@ export class Blast {
             }
         }
         else {
-            this.innerRadius = this.maxRadius
-            this.terrain.fixTerrain(this.x, this.y, this.maxRadius)
-            this.toRemove = true
-            this.image.destroy(true)
-            this.scene.textures.remove(this.textureId)
+            this.finish()
         }
     }
 
 
     animateHole1 = () => {
         var ctx = this.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
 
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -157,13 +220,16 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
+
+        this.innerRadius = Math.max(this.outerRadius - this.thickness, 0)
+        if (this.modernPresentation || !this.canvas || this.skipGradientFrame()) return
 
         var canvas = this.canvas
         var ctx2 = canvas.getContext('2d')
-        this.innerRadius = Math.max(this.outerRadius - this.thickness, 0)
         ctx2.clearRect(0, 0, canvas.width, canvas.height)
 
-        if (this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
+        if (!this.cacheable || this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
             ctx2.globalCompositeOperation = 'source-over'
     
             var grd = ctx2.createRadialGradient(this.maxRadius, this.maxRadius, this.innerRadius, this.maxRadius, this.maxRadius, this.outerRadius)
@@ -187,11 +253,13 @@ export class Blast {
             ctx2.closePath()
             ctx2.fill()
 
-            this.scene.blastCache.addCanvas(this.blastType, this.outerRadius, canvas)
+            if (this.cacheable) this.scene.blastCache.addCanvas(this.blastType, this.outerRadius, canvas)
         }
         else {
             ctx2.drawImage(this.scene.blastCache.getCanvas(this.blastType, this.outerRadius), 0, 0)
         }
+        // WebGL keeps its own copy of canvas textures: upload after drawing.
+        this.refreshTexture()
     }
 
 
@@ -204,18 +272,16 @@ export class Blast {
             this.animateHole2()
         }
         else {
-            this.innerRadius = this.maxRadius
-            this.terrain.fixTerrain(this.x, this.y, this.maxRadius)
-            this.toRemove = true
-            this.image.destroy(true)
-            this.scene.textures.remove(this.textureId)
+            this.finish()
         }
     }
 
 
     animateHole2 = () => {
         var ctx = this.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
 
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -223,13 +289,19 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
+
+        if (this.modernPresentation || !this.canvas || this.skipGradientFrame()) {
+            if (this.circles.length) this.innerRadius = Math.max(this.outerRadius - this.thickness * this.circles.length, 0)
+            return
+        }
 
         var canvas = this.canvas
         var ctx2 = canvas.getContext('2d')
 
         ctx2.clearRect(0, 0, canvas.width, canvas.height)
         
-        if (this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
+        if (!this.cacheable || this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
             ctx2.globalCompositeOperation = 'source-over'
             
             for (var i = 0; i < this.circles.length; i++) {
@@ -268,11 +340,13 @@ export class Blast {
             ctx2.closePath()
             ctx2.fill()
 
-            this.scene.blastCache.addCanvas(this.blastType, this.outerRadius, canvas)
+            if (this.cacheable) this.scene.blastCache.addCanvas(this.blastType, this.outerRadius, canvas)
         }
         else { 
             ctx2.drawImage(this.scene.blastCache.getCanvas(this.blastType, this.outerRadius), 0, 0)
         }
+        // WebGL keeps its own copy of canvas textures: upload after drawing.
+        this.refreshTexture()
 
     }
 
@@ -284,18 +358,16 @@ export class Blast {
         }
 
         else {
-            this.innerRadius = this.maxRadius
-            this.terrain.fixTerrain(this.x, this.y, this.maxRadius)
-            this.toRemove = true
-            this.image.destroy(true)
-            this.scene.textures.remove(this.textureId)
+            this.finish()
         }
     }
 
 
     animateHole3 = () => {
         var ctx = this.terrain.canvas.getContext('2d')
+        ctx.save()
         ctx.globalCompositeOperation = 'destination-out'
+        ctx.globalAlpha = 1
 
         ctx.fillStyle = 'rgba(0,0,0,1)'
         
@@ -303,14 +375,21 @@ export class Blast {
         ctx.arc(this.x, this.y, Math.min(this.outerRadius, this.maxRadius), 0, Math.PI * 2)
         ctx.closePath()
         ctx.fill()
+        ctx.restore()
         //this.terrain.update()
+
+        if (this.modernPresentation || !this.canvas || this.skipGradientFrame()) {
+            if (this.circles.length) this.innerRadius = Math.max(this.outerRadius - this.thickness * this.circles.length, 0)
+            if (this.outerRadius >= this.maxRadius) this.variableRadius--
+            return
+        }
 
         var canvas = this.canvas
         var ctx2 = canvas.getContext('2d')
 
         ctx2.clearRect(0, 0 , canvas.width, canvas.height)
         
-        if (this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
+        if (!this.cacheable || this.scene.blastCache.exists(this.blastType, this.outerRadius) === false) {
             ctx2.globalCompositeOperation = 'source-over'
     
             for (var i = 0; i < this.circles.length; i++) {
@@ -352,11 +431,13 @@ export class Blast {
             ctx2.closePath()
             ctx2.fill()
 
-            this.scene.blastCache.addCanvas(this.blastType, this.outerRadius, canvas)
+            if (this.cacheable) this.scene.blastCache.addCanvas(this.blastType, this.outerRadius, canvas)
         }
         else {
             ctx2.drawImage(this.scene.blastCache.getCanvas(this.blastType, this.outerRadius), 0, 0)
         }
+        // WebGL keeps its own copy of canvas textures: upload after drawing.
+        this.refreshTexture()
 
         if (this.outerRadius >= this.maxRadius) {
             this.variableRadius--

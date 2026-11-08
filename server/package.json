@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon start watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "test": "node scripts/check-sessions.mjs && node scripts/check-persistence.mjs && node scripts/check-random-all.mjs && node scripts/check-turn-authority.mjs"
   },
   "author": "",
   "license": "ISC",
